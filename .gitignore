@@ -1,0 +1,20 @@
+# Python
+__pycache__
+*.egg
+*.egg-info
+
+# Virtualenv
+pyvenv.cfg
+bin/
+Scripts/
+[Ll]ib/
+[Ii]nclude/
+tcl/
+
+# IDE/Editor Files
+*.sublime-workspace
+.codeintel
+.idea/
+
+# Program files
+config.json
