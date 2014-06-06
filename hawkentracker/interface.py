@@ -3,9 +3,10 @@
 
 from redis import StrictRedis
 from flask import g
-from requests.exceptions import ConnectionError, HTTPError, Timeout
+from requests.exceptions import HTTPError, Timeout
 from hawkenapi.cache import RedisCache
 from hawkenapi.client import Client
+from hawkenapi.exceptions import ServiceUnavailable
 from hawkenapi.interface import Session
 from hawkentracker import app
 
@@ -54,10 +55,10 @@ def api_wrapper(func):
     for x in range(0, app.config.get("API_ATTEMPTS")):
         try:
             return func()
-        except (ConnectionError, HTTPError, Timeout) as e:
+        except (ServiceUnavailable, HTTPError, Timeout) as e:
             last_exception = e
 
-    raise InterfaceException from e
+    raise InterfaceException from last_exception
 
 
 @app.teardown_appcontext
