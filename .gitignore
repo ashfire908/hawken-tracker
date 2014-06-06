@@ -6,7 +6,7 @@ __pycache__
 # Virtualenv
 pyvenv.cfg
 bin/
-[Ss]cripts/
+Scripts/
 [Ll]ib/
 [Ii]nclude/
 tcl/
@@ -18,7 +18,3 @@ tcl/
 
 # Program data
 var/
-
-# Don't ignore these scripts
-![Ss]cripts/tracker-cli.py
-![Ss]cripts/tracker-web.py
