@@ -4,7 +4,7 @@
 from redis import StrictRedis
 from flask import g
 from requests.exceptions import HTTPError, Timeout
-from hawkenapi.cache import RedisCache
+from hawkenapi.cache import Cache
 from hawkenapi.client import Client
 from hawkenapi.exceptions import ServiceUnavailable
 from hawkenapi.interface import Session
@@ -33,7 +33,7 @@ def get_api():
     if client is None:
         # Set up the client
         client = Client(session=Session(host=app.config["API_HOST"], scheme=app.config["API_SCHEME"], timeout=app.config["API_TIMEOUT"]))
-        client.cache = RedisCache("hawkenapi", url=app.config["REDIS_URI"], lock_timeout=(app.config["API_TIMEOUT"] * 2))
+        client.cache = Cache("hawkenapi", url=app.config["REDIS_URI"])
 
         redis = get_redis()
         token = redis.get(format_redis_key("api_token"))
