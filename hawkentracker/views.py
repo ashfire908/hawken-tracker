@@ -13,7 +13,7 @@ from hawkentracker.account import ValidationError, get_user, login_user, logout_
 from hawkentracker.helpers import login_required, access_denied, to_next, to_last, format_stat, parse_serverside, load_globals
 from hawkentracker.interface import get_api, get_player_id
 from hawkentracker.mappings import CoreRole, LinkStatus, ranking_fields, ranking_names, region_names, gametype_names, map_names, ranking_names_full
-from hawkentracker.model import Player, Match, MatchPlayer, dump_queries, User
+from hawkentracker.model import Player, Match, MatchPlayer, User
 from hawkentracker.tracker import get_ranked_players, get_global_rank
 from hawkentracker.util import value_or_default
 from hawkentracker.permissions import permissions_view
@@ -462,7 +462,6 @@ def view_player(target):
             players = Player.query.filter(Player.link_user == player.user.id).filter(Player.link_status == LinkStatus.linked).filter(Player.id != guid)
             context["linked"]["players"] = [api.get_user_callsign(player.id) or player.id for player in players]
 
-    dump_queries("view_player")
     load_globals()
     return render_template("player/player.jade", **context)
 
@@ -788,8 +787,6 @@ def player_matches(player):
             if start <= data["recordsFiltered"] <= end:
                 data["data"].append(item)
             data["recordsFiltered"] += 1
-
-    dump_queries("player_matches")
 
     # Return it
     return jsonify(**data)
