@@ -37,8 +37,8 @@ Player abilites control all aspects of the known players.
 * player.{player}.stats.ranked - _View a player's ranked stats_
 * player.{player}.stats.overall - _View a player's global stats_
 * player.{player}.stats.mech - _View a player's mech stats_
-* player.{player}.match.list - _View a player's list of matches_ **NOT FINISHED**
-* player.{player}.match.{match}.view - _View a player within the match listing_ **NOT FINISHED**
+* player.{player}.match.list - _View a player's list of matches_
+* player.{player}.match.{match}.view - _View a player within the match listing_
 * player.{player}.group - _View a player's joined groups and group-related info_
 * player.{player}.link.user - _View a player's linked username_
 * player.{player}.link.players - _View a player's other associated players_

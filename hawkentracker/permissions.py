@@ -519,8 +519,9 @@ def player_match_list(path):
 def player_match_view(path):
     perm, default = get_permission(path, names=(None, "player", None, "match", None))
     user = get_current_user()
+    linked_players = user_linked_players(user)
 
-    if user and path[1] in user_linked_players(user):
+    if user and path[1] in linked_players:
         # User is viewing a linked player
         return True
 
@@ -542,6 +543,13 @@ def player_match_view(path):
     if satifies_perm(perm, player.match_view_privacy, default):
         # User meets the privacy requirement
         return True
+
+    match = Match.query.get(path[3])
+
+    for player in match.players:
+        if player.player_id in linked_players:
+            # User has played in the match
+            return True
 
     return False
 
