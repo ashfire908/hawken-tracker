@@ -1,0 +1,19 @@
+extend layout
+
+block content
+    .page-header
+        h1 Recover username/password
+
+    form.form-horizontal(action=url_for("login", next=request.args.next), method="post", role="form")
+        .form-group
+            p Forgot your username? use this
+            label.col-sm-2.control-label(for="email") Email
+            .col-sm-2
+                input.form-control(name="email", type="text", placeholder="Email")
+        .form-group
+            p Forgot your password? use this
+            label.col-sm-2.control-label(for="username") Username
+            .col-sm-2
+                input.form-control(name="username", type="text", placeholder="Username")
+        .form-group
+            button.btn.btn-success(type="submit") Recover account

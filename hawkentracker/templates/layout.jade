@@ -1,0 +1,50 @@
+doctype html
+html
+    head(lang="en")
+        title
+            block title
+                | Hawken Tracker
+        meta(http-equiv="X-UA-Compatible", content="IE=edge")
+
+        // CSS
+        if config["DEBUG"]
+            link(rel="stylesheet", type="text/css", href=url_for("static", filename="css/bootstrap.css"))
+            link(rel="stylesheet", type="text/css", href=url_for("static", filename="css/bootstrap-theme.css"))
+        else
+            link(rel="stylesheet", type="text/css", href=url_for("static", filename="css/bootstrap.min.css"))
+            link(rel="stylesheet", type="text/css", href=url_for("static", filename="css/bootstrap-theme.min.css"))
+        block css
+        link(rel="stylesheet", type="text/css", href=url_for("static", filename="css/tracker.css"))
+    body
+        // Header
+        include includes/header
+        // Main body
+        .container
+            // Alerts
+            each category, message in get_flashed_messages(with_categories=True)
+                if category == "error"
+                    .alert.alert-danger= message
+                else
+                    if category == "warning"
+                        .alert.alert-warning= message
+                    else
+                        if category == "info"
+                            .alert.alert-info= message
+                        else
+                            if category == "success"
+                                .alert.alert-success= message
+                            else
+                                .alert.alert-primary= message
+            // Content
+            block content
+            // Footer
+            include includes/footer
+        // Javascript
+        if config["DEBUG"]
+            script(type="text/javascript", src=url_for("static", filename="js/jquery.js"))
+            script(type="text/javascript", src=url_for("static", filename="js/bootstrap.js"))
+        else
+            script(type="text/javascript", src=url_for("static", filename="js/jquery.min.js"))
+            script(type="text/javascript", src=url_for("static", filename="js/bootstrap.min.js"))
+        script(type="text/javascript", src=url_for("static", filename="js/tracker.js"))
+        block js

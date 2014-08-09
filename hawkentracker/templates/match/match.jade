@@ -1,0 +1,76 @@
+extend layout
+
+block css
+    if config["DEBUG"]
+        link(rel="stylesheet", type="text/css", href=url_for("static", filename="css/dataTables.bootstrap.css"))
+    else
+        link(rel="stylesheet", type="text/css", href=url_for("static", filename="css/dataTables.bootstrap.min.css"))
+
+block js
+    if config["DEBUG"]
+        script(type="text/javascript", src=url_for("static", filename="js/jquery.dataTables.js"))
+        script(type="text/javascript", src=url_for("static", filename="js/dataTables.bootstrap.js"))
+    else
+        script(type="text/javascript", src=url_for("static", filename="js/jquery.dataTables.min.js"))
+        script(type="text/javascript", src=url_for("static", filename="js/dataTables.bootstrap.min.js"))
+    if players
+        script(type="text/javascript").
+            $(document).ready(function() {
+                setup_match_players("#players");
+            });
+
+block content
+    .page-header
+        h1 Match info
+
+    dl.dl-horizontal
+        dt Match Id
+        dd= match.id
+        dt Server Name
+        dd= match.server_name
+        dt Server Region
+        dd= match.server_region
+        dt Server Gametype
+        dd= match.server_gametype
+        dt Server Map
+        dd= match.server_map
+        if config["DEBUG"]
+            dt Server Version
+            dd= match.server_version
+        dt First Seen
+        dd= match.first_seen
+        dt Last Seen
+        dd= match.last_seen
+        if match.average_mmr != False
+            dt Average MMR
+            if match.average_mmr == None
+                dd [Pending Calculation]
+            else
+                dd= match.average_mmr
+        if match.average_level != False
+            dt Average Level
+            if match.average_level == None
+                dd [Pending Calculation]
+            else
+                dd= match.average_level
+
+    if players:
+        .page-header
+            h2 Players
+
+        table#players.table.table-striped.table-bordered
+            thead
+                tr
+                    th Player
+                    th Joined
+                    th Left
+            tbody
+                for player in players
+                    tr
+                        if player.name == None:
+                            td [Private]
+                        else
+                            td
+                                a(href=url_for("view_player", target=player.name))= player.name
+                        td= player.first_seen
+                        td= player.last_seen

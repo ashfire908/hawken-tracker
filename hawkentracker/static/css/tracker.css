@@ -1,0 +1,18 @@
+#leaderboard_sort {
+	float: right;
+}
+
+/* Make inline buttons work correctly in the navbar */
+.navbar-form .input-group-btn {
+	width: auto;
+}
+
+dl.dl-horizontal dd span.ranking {
+	display: inline-block;
+	width: 20em;
+}
+
+/* Add padding to the navbar buttons */
+.navbar-nav li .btn {
+    margin-left: 10px;
+}

@@ -1,0 +1,26 @@
+extend layout
+
+block content
+    .page-header
+        h1 Login
+
+    form.form-horizontal(action=url_for("register", next=request.args.next), method="post", role="form")
+        .form-group
+            label.col-sm-2.control-label(for="username") Username
+            .col-sm-2
+                input.form-control(name="username", type="text", placeholder="Username")
+        .form-group
+            label.col-sm-2.control-label(for="password") Password
+            .col-sm-2
+                input.form-control(name="password", type="password", placeholder="Password")
+        .form-group
+            label.col-sm-2.control-label(for="confirm") Confirm Password
+            .col-sm-2
+                input.form-control(name="confirm", type="password")
+        .form-group
+            label.col-sm-2.control-label(for="email") Email
+            .col-sm-2
+                input.form-control(name="email", type="text", placeholder="Email")
+        .form-group
+            .col-sm-offset-2.col-sm-2
+                button.btn.btn-success(type="submit") Register

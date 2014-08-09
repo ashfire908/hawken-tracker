@@ -1,0 +1,24 @@
+.navbar.navbar-inverse.navbar-static-top(role="navigation")
+    .container
+        .navbar-header
+            a.navbar-brand(href=url_for("index")) Hawken Tracker
+        if g.since_update
+            p.navbar-text Last Update: #{g.since_update} ago
+        if session.user
+            ul.nav.navbar-nav.navbar-right
+                li#lookup.navbar-form.input-group(role="search")
+                    input.form-control(type="text", placeholder="Player")
+                    span.input-group-btn
+                        button.btn.btn-default(type="submit") Lookup
+                li
+                    a(href=url_for("account")) Welcome, #{g.user_name}
+                li
+                    a(href=url_for("logout")) Logout
+        else
+            ul.nav.navbar-nav.navbar-right
+                li
+                    div.navbar-btn
+                        a.btn.btn-default(href=url_for("login", next="index")) Sign in
+                li
+                    div.navbar-btn
+                        a.btn.btn-success(href=url_for("register", next="index")) Register

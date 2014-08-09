@@ -1,0 +1,57 @@
+extend layout
+
+block content
+    .page-header
+        if settings or password or delete
+            .btn-group.pull-right
+                if settings
+                    a.btn.btn-default(href=url_for("account_settings")) Settings
+                if password
+                    a.btn.btn-default(href=url_for("account_password")) Password
+                if delete
+                    a.btn.btn-danger(href=url_for("delete_account")) Delete
+        h1 Your Account
+
+
+    dl.dl-horizontal
+        dt Username
+        dd= user.username
+        dt Member since
+        dd= user.creation
+        dt Role
+        dd= user.role.name
+        dt Profile Privacy
+        dd= user.view_privacy
+        dt Linked Players Privacy
+        dd= user.link_privacy
+
+    if players != false
+        .page-header
+            h2 Linked players
+
+        if players | length == 0
+            p You have no players linked! You can add one in game via ScrimBot. link for more info here
+        else
+            table.table
+                thead
+                    tr
+                        th Player
+                        th.col-xs-2 Status
+                        th.col-xs-3.col-md-2 Actions
+                tbody
+                    for name, player in players.items() | sort
+                        tr
+                            td
+                                a(href=url_for("view_player", target=name))= name
+                            if player.link_status == LinkStatus.pending
+                                td Pending
+                                td
+                                    a.btn.btn-success(href=url_for("account_link_player", target=name)) Confirm
+                                    | 
+                                    a.btn.btn-danger(href=url_for("account_unlink_player", target=name)) Remove
+                            else
+                                td Linked
+                                td
+                                    a.btn.btn-default(href=url_for("player_settings", target=name)) Settings
+                                    | 
+                                    a.btn.btn-danger(href=url_for("account_unlink_player", target=name)) Remove

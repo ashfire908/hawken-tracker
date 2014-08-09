@@ -1,0 +1,52 @@
+extend layout
+
+block content
+    .page-header
+        h1= name
+
+    if player.blacklisted
+        .panel.panel-danger
+            .panel-heading Player has been blacklisted
+            .panel-body
+                p This player has been administratively blacklisted, and as such has been removed from all site rankings. Regardless of the settings used here, access to this profile will be restricted and opt-out status will be forced on.
+                if player.blacklist_reason:
+                    p Reason: #{player.blacklist_reason}
+
+    form.form-horizontal(role="form")
+        h2 Preferences
+        .form-group
+            label.control-label(for="home_region") Home Region
+            select
+                if player.home_region == None
+                    option(value="null", selected="selected") Use auto-detected region
+                else
+                    option(value="null") Use auto-detected region
+                option(disabled) ---
+                for key, value in regions.items() | sort
+                    if player.home_region == key:
+                        option(value=key, selected="selected")= value
+                    else
+                        option(value=key)= value
+
+        h2 Privacy settings
+        .checkbox
+            label
+                input(type="checkbox", name="optout" value="active")
+                | Opt out of the Leaderboard
+
+        .form-group
+            for power, name in view_privacy_levels.items() | sort
+                label.radio-inline
+                    input(type="ratio", name="view_privacy", value=power)
+                    |= name
+        p view privacy
+        p Region privacy
+        p leaderboard privacy
+        p ranking privacy
+        p ranked stats privacy
+        p overall stats privacy
+        p mech stats privacy
+        p match list privacy
+        p match view privacy
+        p group privacy
+        p link privacy

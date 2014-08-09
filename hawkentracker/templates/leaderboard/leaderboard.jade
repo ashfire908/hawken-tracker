@@ -1,0 +1,35 @@
+extend layout
+
+block css
+    if config["DEBUG"]
+        link(rel="stylesheet", type="text/css", href=url_for("static", filename="css/dataTables.bootstrap.css"))
+    else
+        link(rel="stylesheet", type="text/css", href=url_for("static", filename="css/dataTables.bootstrap.min.css"))
+
+block js
+    if config["DEBUG"]
+            script(type="text/javascript", src=url_for("static", filename="js/jquery.dataTables.js"))
+            script(type="text/javascript", src=url_for("static", filename="js/dataTables.bootstrap.js"))
+        else
+            script(type="text/javascript", src=url_for("static", filename="js/jquery.dataTables.min.js"))
+            script(type="text/javascript", src=url_for("static", filename="js/dataTables.bootstrap.min.js"))
+    script(type="text/javascript").
+        $(document).ready(function() {
+            setup_leaderboard("#leaderboard", "#leaderboard_sort ul", ".active-sort", "#{url_for('global_leaderboard')}", "#{default_sort}");
+        });
+
+block content
+    .jumbotron
+        h1 Hawken Leaderboards
+        p NOT LEGIT DO NOT USE THIS MEANS YOU YES YOU STOP IT RIGHT NOW AHHHHHHHHHHHHH
+    #leaderboard_sort.btn-group
+        button.btn.btn-default.dropdown-toggle(type="button", data-toggle="dropdown")
+            | Rank by
+            span.caret
+        ul.dropdown-menu(role="menu")
+
+    .page-header
+        h1 Top players by 
+            span.active-sort= sort_names[default_sort]
+
+    table#leaderboard.table.table-striped.table-bordered
