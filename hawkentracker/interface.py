@@ -1,14 +1,20 @@
 # -*- coding: utf-8 -*-
-# Hawken Tracker - API-related helpers
+# Hawken Tracker - External service helpers
 
+import logging
+import smtplib
+from email.mime.text import MIMEText
 from redis import StrictRedis
 from flask import g
 from requests.exceptions import HTTPError, Timeout
+from hawkenapi.util import verify_guid
 from hawkenapi.cache import Cache
 from hawkenapi.client import Client
 from hawkenapi.exceptions import ServiceUnavailable
 from hawkenapi.interface import Session
 from hawkentracker import app
+
+logger = logging.getLogger(__name__)
 
 
 class InterfaceException(Exception):
@@ -47,12 +53,16 @@ def get_api():
             api_wrapper(lambda: client.login(app.config["API_USER"], app.config["API_PASS"]))
             redis.set(format_redis_key("api_token"), client.grant.token)
 
+        g.api_client = client
+
     return client
 
 
 def api_wrapper(func):
     last_exception = None
     for x in range(0, app.config.get("API_ATTEMPTS")):
+        if last_exception is not None:
+            logger.warn("[API] Retrying failed call: {0} {1} ".format(type(last_exception), last_exception))
         try:
             return func()
         except (ServiceUnavailable, HTTPError, Timeout) as e:
@@ -67,3 +77,30 @@ def teardown_api(exception):
     if client is not None and client.authed:
         redis = get_redis()
         redis.set(format_redis_key("api_token"), client.grant.token)
+
+
+def send_email(to, subject, message):
+    # Create the message
+    message = MIMEText(message)
+    message["Subject"] = subject
+    message["From"] = app.config["EMAIL_ADDRESS"]
+    message["To"] = to
+
+    # Send the email
+    connection = smtplib.SMTP(app.config["EMAIL_SERVER"])
+    connection.sendmail(app.config["EMAIL_ADDRESS"], to, message.as_string())
+    connection.quit()
+
+
+def get_player_id(player, callsign=True):
+    api = get_api()
+
+    # Get the target player and their callsign
+    if verify_guid(player):
+        guid = player
+        callsign = api.get_user_callsign(guid) if callsign else None
+    else:
+        guid = api.get_user_guid(player)
+        callsign = api.get_user_callsign(guid) if callsign and guid is not None else None
+
+    return guid, callsign

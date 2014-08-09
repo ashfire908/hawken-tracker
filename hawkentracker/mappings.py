@@ -7,25 +7,15 @@ from hawkentracker.util import CaseInsensitiveDict
 
 # Database enums
 @unique
-class Role(IntEnum):
-    anonymous = 0
-    user = 1
-    group_member = 2
-    group_manager = 3
-    group_admin = 4
-    admin = 5
-
-
-@unique
-class ListingPrivacy(IntEnum):
-    public = 0
-    unlisted = 1
-    private = 2
+class LinkStatus(IntEnum):
+    none = 0
+    pending = 1
+    linked = 2
 
 
 @unique
 class JoinPrivacy(IntEnum):
-    public = 0
+    open = 0
     approval = 1
     invite_only = 2
 
@@ -40,17 +30,35 @@ class Confirmation(IntEnum):
     both_blocked = 5
 
 
-# Redis ranked fields
-ranking_fields = ("mmr", "time_played", "xp_per_min", "hc_per_min", "kda", "kill_steals", "critical_assists",
-                  "damage", "win_loss", "dm_win_loss", "tdm_win_loss", "ma_win_loss", "sg_win_loss", "coop_win_loss",
-                  "cooptdm_win_loss")
+@unique
+class CoreRole(IntEnum):
+    anonymous = 1
+    unconfirmed = 2
+    user = 3
 
-# Privacy defaults
+# Redis ranked fields
+ranking_fields = ("mmr", "time_played", "xp", "xp_per_min", "hc", "hc_per_min", "kda", "kill_steals",
+                  "critical_assists", "damage", "win_loss", "dm_win_loss", "tdm_win_loss", "ma_win_loss", "sg_win_loss",
+                  "coop_win_loss", "cooptdm_win_loss")
+
+# Roles and permissions
 default_privacy = {
-    "leaderboard": Role.anonymous,
-    "rank": Role.admin,
-    "stats": Role.admin,
-    "match": Role.user
+    "user.user.view": 0,
+    "user.user.link.list": 0,
+    "player.player.view": 0,
+    "player.player.region": 0,
+    "player.player.leaderboard": 0,
+    "player.player.rankings": 0,
+    "player.player.stats.ranked": 0,
+    "player.player.stats.overall": 0,
+    "player.player.stats.mech": 0,
+    "player.player.match.list": 0,
+    "player.player.match.match.view": 0,
+    "player.player.group": 100,  # Groups are not implemented
+    "player.player.link.players": 0,
+    "match.match.view": False,
+    "match.match.players": False,
+    "match.match.stats": False
 }
 
 # Human-readable API mappings
@@ -95,7 +103,9 @@ gametype_names = CaseInsensitiveDict({
 ranking_names = {
     "mmr": "MMR",
     "time_played": "Time Played",
+    "xp": "XP",
     "xp_per_min": "XP/Min",
+    "hc": "HC",
     "hc_per_min": "HC/Min",
     "kda": "KDA Ratio",
     "kill_steals": "Steals/Kills",
@@ -113,7 +123,9 @@ ranking_names = {
 ranking_names_full = {
     "mmr": "MMR",
     "time_played": "Time Played",
+    "xp": "Total XP",
     "xp_per_min": "XP per Min",
+    "hc": "Total HC",
     "hc_per_min": "HC per Min",
     "kda": "Kills + Assists / Deaths",
     "kill_steals": "Kill Steals / Kills",

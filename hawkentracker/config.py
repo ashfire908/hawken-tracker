@@ -9,6 +9,8 @@ from hawkentracker import app
 app.config.update(
     DEBUG=False,
     SECRET_KEY="DevelopmentKey",
+    EMAIL_TOKEN_MAX_AGE=172800,
+    RESET_TOKEN_MAX_AGE=172800,
     SQLALCHEMY_DATABASE_URI=None,
     REDIS_URI=None,
     REDIS_PREFIX="hawkentracker",
@@ -17,7 +19,14 @@ app.config.update(
     API_USER=None,
     API_PASS=None,
     API_ATTEMPTS=1,
-    API_TIMEOUT=15
+    API_TIMEOUT=15,
+    TRACKER_BATCH_SIZE=500,
+    SITE_ADDRESS="http://localhost:5000",
+    EMAIL_ADDRESS="localhost",
+    EMAIL_SERVER=None,
+    EMAIL_USER=None,
+    EMAIL_PASS=None,
+    SUPPORT_EMAIL=None
 )
 
 # Load in config
@@ -31,5 +40,3 @@ with app.open_instance_resource(os.path.join(app.instance_path, "config.json"), 
         raise ValueError("No Hawken API user has been set")
     if app.config["API_PASS"] is None:
         raise ValueError("No Hawken API password has been set")
-    if app.config["API_ATTEMPTS"] is None:
-        raise ValueError("No Hawken API attempts limit has been set")

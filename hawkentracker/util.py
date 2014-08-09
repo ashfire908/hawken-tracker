@@ -4,6 +4,20 @@
 import collections
 
 
+def chunks(data, size):
+    chunk = []
+    i = 0
+    for item in data:
+        chunk.append(item)
+        i += 1
+        if i % size == 0:
+            yield chunk
+            chunk = []
+
+    if i % size != 0:
+        yield chunk
+
+
 class CaseInsensitiveDict(collections.MutableMapping):
     def __init__(self, data=None, **kwargs):
         self._store = dict()
