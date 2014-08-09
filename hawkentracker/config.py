@@ -26,7 +26,8 @@ app.config.update(
     EMAIL_SERVER=None,
     EMAIL_USER=None,
     EMAIL_PASS=None,
-    SUPPORT_EMAIL=None
+    SUPPORT_EMAIL=None,
+    MATCH_STATS_THRESHOLD=2
 )
 
 # Load in config
