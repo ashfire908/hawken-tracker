@@ -106,7 +106,6 @@ class Player(db.Model):
     mech_stats_privacy = db.Column(db.Integer)
     match_list_privacy = db.Column(db.Integer)
     match_view_privacy = db.Column(db.Integer)
-    #match_viewable_to_players = db.Column(db.Boolean)
     group_privacy = db.Column(db.Integer)
     link_privacy = db.Column(db.Integer)
 

@@ -587,7 +587,6 @@ def player_group(path):
 
 def player_link_user(path):
     perm = get_permission(path, names=(None, "player", None, None))[0]
-
     user = get_current_user()
 
     if user and path[1] in user_linked_players(user):
