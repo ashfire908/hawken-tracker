@@ -22,7 +22,6 @@ var leaderboard_map = {
 var leaderboard_cols = Object.keys(leaderboard_map);
 var leaderboard_ignore = ["rank", "player", "region"];
 var leaderboard_always = ["mmr", "kda"];
-//var leaderboard_always = ["mmr", "time_played", "xp_per_min", "hc_per_min", "kda", "kill_steals", "critical_assists", "damage", "win_loss", "dm_win_loss", "tdm_win_loss", "ma_win_loss", "sg_win_loss", "coop_win_loss", "cooptdm_win_loss"];
 var leaderboard_endpoint = null;
 
 // Player matches data

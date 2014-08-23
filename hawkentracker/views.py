@@ -565,81 +565,6 @@ def match(id):
     return render_template("match/match.jade", **context)
 
 
-#@app.route("/group")
-#def list_groups():
-#    return "group list"
-#
-#
-#@app.route("/group/<id>")
-#def group(id):
-#    return "group"
-#
-#
-#@app.route("/group/<id>/roster")
-#def group_roster(id):
-#    return "group roster"
-#
-#
-#@app.route("/group/<id>/join", methods=["POST"])
-#@login_required
-#def join_group(id):
-#    return "join group"
-#
-#
-#@app.route("/group/<id>/leave", methods=["POST"])
-#@login_required
-#def leave_group(id):
-#    return "leave group"
-#
-#
-#@app.route("/group/<id>/preferences", methods=["GET", "POST"])
-#@login_required
-#def group_preferences(id):
-#    return "group preferences"
-#
-#
-#@app.route("/group/<id>/create", methods=["GET", "POST"])
-#@login_required
-#def create_group():
-#    return "create group"
-#
-#
-#@app.route("/group/<id>/edit", methods=["POST"])
-#@login_required
-#def edit_group(id):
-#    return "edit group"
-#
-#
-#@app.route("/group/<id>/delete", methods=["GET", "POST"])
-#@login_required
-#def delete_group(id):
-#    return "delete group"
-#
-#
-#@app.route("/group/<id>/dashboard")
-#@login_required
-#def group_dashboard(id):
-#    return "group dashboard"
-#
-#
-#@app.route("/group/<id>/member/edit", methods=["POST"])
-#@login_required
-#def edit_member(id):
-#    return "edit member"
-#
-#
-#@app.route("/group/<id>/member/invite", methods=["POST"])
-#@login_required
-#def invite_member(id):
-#    return "invite member"
-#
-#
-#@app.route("/group/<id>/member/remove", methods=["POST"])
-#@login_required
-#def remove_member(id):
-#    return "remove member"
-
-
 @app.route("/data/leaderboard/global")
 def global_leaderboard():
     api = get_api()
@@ -748,13 +673,10 @@ def player_matches(player):
     matches = MatchPlayer.query.join(MatchPlayer.match).filter(MatchPlayer.player_id == guid).options(contains_eager(MatchPlayer.match)).order_by(sort).all()
 
     show_all = permissions_view.player.player(player.id).match.view
-    #ids = [match.id for match in matches]
-    #view_perm = {id: perm for id, perm in zip(ids, permissions_view.match.match(ids).view)}
 
     for match in matches:
         data["recordsTotal"] += 1
 
-        #if not view_perm[match.match_id]:
         if not show_all and not permissions_view.match.match(match.match_id).view:
             continue
 

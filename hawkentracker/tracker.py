@@ -262,60 +262,6 @@ def update_global_rankings():
             pipe.execute()
 
 
-#def update_group_rankings():
-#    logger.info("[Rankings] Updating group rankings")
-#    redis = get_redis()
-#
-#    for group in db.session.query(Group.id).yield_per(app.config["TRACKER_BATCH_SIZE"]):
-#        logger.info("[Rankings] Updating group rankings for group %i", group)
-#
-#        # Iterate over the rankings
-#        for field in ranking_fields:
-#            key = format_redis_key("grouprank", group, field)
-#
-#            # Delete old rankings
-#            logger.debug("[Rankings] Dropping group rankings for group %i, field %s", group, field)
-#            redis.delete(key)
-#
-#            # Get the target field and it's default
-#            logger.debug("[Rankings] Updating group rankings for group %i, field %s", group, field)
-#            target = getattr(PlayerStats, field)
-#            if target.default is None:
-#                default = target.default
-#            else:
-#                default = target.default.arg
-#
-#            with redis.pipeline(transaction=False) as pipe:
-#                # Iterate over the players, building the current field's rankings
-#                query = db.session.query(PlayerStats.player_id, target).\
-#                                   join(Player).\
-#                                   join(GroupPlayer).\
-#                                   filter(target != default).\
-#                                   filter(Player.blacklisted == False).\
-#                                   filter(GroupPlayer.group_id == group).\
-#                                   filter(GroupPlayer.confirmation == Confirmation.both).\
-#                                   order_by(target.desc())
-#
-#                # Setup for the loop
-#                index = 0
-#                position = 0
-#                last = False
-#                for player, score in query.yield_per(app.config["TRACKER_BATCH_SIZE"]):
-#                    # Update the index and position
-#                    index += 1
-#                    if last != score:
-#                        position = index
-#
-#                    # Add the player's position to the hash
-#                    pipe.hset(key, player, position)
-#
-#                    # Setup for the next iteration
-#                    last = score
-#
-#                # Flush the field's rankings
-#                pipe.execute()
-
-
 def poll_servers():
     # Setup for the poll
     players_count = 0
@@ -403,7 +349,6 @@ def update_all(force=False):
     else:
         # Update the rankings
         update_global_rankings()
-        #update_group_rankings()
         rankings = True
     finally:
         # Record the update session
@@ -425,14 +370,6 @@ def get_global_rank(player, field):
     if isinstance(player, str):
         return decode_rank(redis.hget(format_redis_key("rank", field), player))
     return {player: decode_rank(rank) for player, rank in zip(player, redis.hmget(format_redis_key("rank", field), player))}
-
-
-#def get_group_rank(group, player, field):
-#    redis = get_redis()
-#
-#    if isinstance(player, str):
-#        return decode_rank(redis.hget(format_redis_key("grouprank", group, field), player))
-#    return {player: decode_rank(rank) for player, rank in redis.hmget(format_redis_key("grouprank", field), group, player).items()}
 
 
 def get_ranked_players(field, count, preload=None):

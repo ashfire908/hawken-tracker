@@ -113,7 +113,6 @@ class Player(db.Model):
     stats = db.relationship("PlayerStats", uselist=False, backref=db.backref("player", uselist=False))
     user = db.relationship("User", foreign_keys=[link_user], uselist=False, backref="players")
     blacklister = db.relationship("User", foreign_keys=[blacklist_by])
-    #groups = db.relationship("GroupPlayer", backref=db.backref("player", uselist=False))
 
     def __repr__(self):
         return "<Player(id='{0}')>".format(self.id)
@@ -326,72 +325,6 @@ class UserPermission(db.Model):
 
     def __repr__(self):
         return "<UserPermission(role_id={0}, permission='{1}', power={2})>".format(self.role_id, self.permission, self.power)
-
-
-#class Group(db.Model):
-#    __tablename__ = "groups"
-#
-#    id = db.Column(db.Integer, autoincrement=True, primary_key=True)
-#    name = db.Column(db.String, unique=True, nullable=False)
-#    description = db.Column(db.Text)
-#    website = db.Column(db.String)
-#    creation = db.Column(db.DateTime, nullable=False)
-#    public_listing = db.Column(db.Boolean, nullable=False)
-#    view_privacy = db.Column(db.Integer, nullable=False)
-#    join_privacy = db.Column(NativeIntEnum(JoinPrivacy), nullable=False)
-#    member_privacy = db.Column(db.Integer, nullable=False)
-#    rank_privacy = db.Column(db.Integer, nullable=False)
-#    match_privacy = db.Column(db.Integer, nullable=False)
-#
-#    players = db.relationship("GroupPlayer", backref=db.backref("group", uselist=False))
-#
-#    def __repr__(self):
-#        return "<Group(id={0}, name='{1}')>".format(self.id, self.name)
-#
-#
-#class GroupPlayer(db.Model):
-#    __tablename__ = "group_players"
-#
-#    group_id = db.Column(db.Integer, db.ForeignKey("groups.id"), index=True, primary_key=True)
-#    player_id = db.Column(db.String(36), db.ForeignKey("players.id"), index=True, primary_key=True)
-#    role_id = db.Column(db.Integer, db.ForeignKey("group_roles.id"), index=True, nullable=False)
-#    confirmation = db.Column(NativeIntEnum(Confirmation), index=True, nullable=False)
-#    privacy_cascade = db.Column(db.Boolean, default=False, nullable=False)
-#    region_privacy = db.Column(db.Integer)
-#    leaderboard_privacy = db.Column(db.Integer)
-#    ranking_privacy = db.Column(db.Integer)
-#    ranked_stats_privacy = db.Column(db.Integer)
-#    global_stats_privacy = db.Column(db.Integer)
-#    item_stats_privacy = db.Column(db.Integer)
-#    match_privacy = db.Column(db.Integer)
-#    group_privacy = db.Column(db.Integer)
-#    link_privacy = db.Column(db.Integer)
-#
-#    def __repr__(self):
-#        return "<GroupPlayer(group_id='{0}', player_id='{1}')>".format(self.group_id, self.player_id)
-#
-#class GroupRole(db.Model):
-#    __tablename__ = "group_roles"
-#
-#    id = db.Column(db.Integer, autoincrement=True, primary_key=True)
-#    name = db.Column(db.String, unique=True, nullable=False)
-#
-#    players = db.relationship("GroupPlayer", backref=db.backref("role", uselist=False))
-#    permissions = db.relationship("GroupPermission", backref=db.backref("role", uselist=False))
-#
-#    def __repr__(self):
-#        return "<GroupRole(id={0}, name='{1}')>".format(self.id, self.name)
-#
-#
-#class GroupPermission(db.Model):
-#    __tablename__ = "group_permissions"
-#
-#    role_id = db.Column(db.Integer, db.ForeignKey("group_roles.id"), primary_key=True, index=True)
-#    permission = db.Column(db.String, primary_key=True)
-#    power = db.Column(db.Integer, default=0, nullable=False)
-#
-#    def __repr__(self):
-#        return "<GroupPermission(role_id={0}, permission='{1}', power={2})>".format(self.role_id, self.permission, self.power)
 
 
 class PollLog(db.Model):

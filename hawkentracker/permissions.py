@@ -784,38 +784,6 @@ handler_map = {
             "stats": match_stats
         })
     }
-    #"group": {
-    #    "list": {
-    #        "public": group_list_public,
-    #        "all": group_list_all
-    #    },
-    #    "search": group_search,
-    #    "group": param_wrapper({
-    #        "create": group_create,
-    #        "view": group_view,
-    #        "edit": group_edit,
-    #        "delete": group_delete,
-    #        "rankings": group_rankings,
-    #        "matches": group_matches,
-    #        "member": {
-    #            "list": group_member_list,
-    #            "player": param_wrapper({
-    #                "add": group_member_add,
-    #                "invite": group_member_invite,
-    #                "join": group_member_join,
-    #                "approve": group_member_approve,
-    #                "accept": group_member_accept,
-    #                "edit": {
-    #                    "role": group_member_edit_role,
-    #                    "relationship": group_member_edit_relationship
-    #                },
-    #                "remove": group_member_remove,
-    #                "ignore": group_member_ignore,
-    #                "block": group_member_block
-    #            })
-    #        }
-    #    })
-    #}
 }
 
 permissions_view = PermissionView(handler_map)
