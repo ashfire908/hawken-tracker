@@ -19,12 +19,12 @@ def update_seen_players(players, poll_time):
 
     # Update existing players
     logger.debug("[Players] Updating existing players")
-    Player.query.filter(Player.id.in_(players)).update({"last_seen": poll_time})
+    Player.query.filter(Player.id.in_(players)).update({"last_seen": poll_time}, synchronize_session=False)
 
     # Add new players
     logger.debug("[Players] Adding new players")
     missing = 0
-    for guid in players.difference(db.session.query(Player.id).filter(Player.id.in_(players)).all()):
+    for guid in set(players).difference([id[0] for id in db.session.query(Player.id).filter(Player.id.in_(players))]):
         player = Player(id=guid)
         player.update(poll_time)
         db.session.add(player)
