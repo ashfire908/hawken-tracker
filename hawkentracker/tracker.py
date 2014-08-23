@@ -258,6 +258,9 @@ def update_global_rankings():
                 # Setup for the next iteration
                 last = score
 
+            # Set the total number of ranked players
+            pipe.hset(key, "total", index)
+
             # Flush the field's rankings
             pipe.execute()
 
@@ -366,10 +369,12 @@ def decode_rank(rank):
 
 def get_global_rank(player, field):
     redis = get_redis()
+    total = decode_rank(redis.hget(format_redis_key("rank", field), "total"))
 
     if isinstance(player, str):
-        return decode_rank(redis.hget(format_redis_key("rank", field), player))
-    return {player: decode_rank(rank) for player, rank in zip(player, redis.hmget(format_redis_key("rank", field), player))}
+        return decode_rank(redis.hget(format_redis_key("rank", field), player)), total
+
+    return {player: decode_rank(rank) for player, rank in zip(player, redis.hmget(format_redis_key("rank", field), player))}, total
 
 
 def get_ranked_players(field, count, preload=None):

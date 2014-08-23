@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # Hawken Tracker - Views
 
+import math
 from collections import OrderedDict
 from sqlalchemy import func
 from sqlalchemy.orm import contains_eager
@@ -431,7 +432,9 @@ def view_player(target):
                 stat = getattr(player.stats, field, None)
                 if stat is None:
                     continue
-                context["ranking"][ranking_names_full[field]] = (format_stat(stat, field) if show_stats else False, get_global_rank(player.id, field))
+                rank, total = get_global_rank(player.id, field)
+                percentage = rank / total
+                context["ranking"][ranking_names_full[field]] = (format_stat(stat, field) if show_stats else False, "Rank #%i" % rank if percentage < app.config["RANK_PERCENT_THRESHOLD"] else "Top {0:.0f}%".format(math.ceil(percentage * 100)))
 
     # Global stats
     if permissions_view.player.player(player.id).stats.overall:
@@ -577,7 +580,7 @@ def global_leaderboard():
 
     # Load the data
     players = get_ranked_players(sort, 100, preload=additional)
-    rankings = get_global_rank([player.id for player in players], sort)
+    rankings = get_global_rank([player.id for player in players], sort)[0]
 
     # Format it for return
     items = []
