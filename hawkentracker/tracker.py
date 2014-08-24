@@ -99,7 +99,7 @@ def update_players(last):
     # Iterate over the players
     i = 1
     count = 0
-    for chunk in chunks(windowed_query(query, Player.id, app.config["TRACKER_BATCH_SIZE"], *filters), app.config["TRACKER_BATCH_SIZE"]):
+    for chunk in chunks(windowed_query(query, Player.last_seen, app.config["TRACKER_BATCH_SIZE"], *filters), app.config["TRACKER_BATCH_SIZE"]):
         # Update the stats
         logger.debug("[Players] Updating stats for chunk %d", i)
         update_player_stats(chunk, update_time)
@@ -171,7 +171,7 @@ def update_matches(last):
     # Iterate over the matches
     i = 1
     count = 0
-    for match in windowed_query(query, Match.id, app.config["TRACKER_BATCH_SIZE"], *filters):
+    for match in windowed_query(query, Match.last_seen, app.config["TRACKER_BATCH_SIZE"], *filters):
         # Update the averages
         update_match_averages(match)
 
