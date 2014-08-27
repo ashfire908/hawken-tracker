@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Hawken Tracker - CLI interface
 
+import sys
 import time
 import argparse
 import logging
@@ -13,6 +14,11 @@ from hawkentracker.tracker import poll_servers, update_all
 
 def setup_logging(level):
     logging.basicConfig(format="%(asctime)s %(message)s", level=level)
+
+
+def message(msg):
+    sys.stdout.write(msg + "\n")
+    sys.stdout.flush()
 
 
 def main(task, verbosity, force, debug):
@@ -29,26 +35,26 @@ def main(task, verbosity, force, debug):
     # Perform the task given
     if task == "setup":
         if verbosity >= 1:
-            print("Setting up the database...")
+            message("Setting up the database...")
 
         db.create_all()
 
         if verbosity >= 1:
-            print("Setup complete!")
+            message("Setup complete!")
     elif task == "poll":
         if verbosity >= 1:
-            print("Polling servers for players and matches.")
+            message("Polling servers for players and matches.")
         players, matches = poll_servers()
 
         if verbosity >= 1:
-            print("Updated {0} players and {1} matches.".format(players, matches))
+            message("Updated {0} players and {1} matches.".format(players, matches))
     elif task == "update":
         if verbosity >= 1:
-            print("Updating rankings and cached player/match data.")
+            message("Updating rankings and cached player/match data.")
         players, matches, rankings = update_all(force=force)
 
         if verbosity >= 1:
-            print("Updated {0} players and {1} matches.".format(players, matches))
+            message("Updated {0} players and {1} matches.".format(players, matches))
     elif task == "last":
         poll = PollLog.last()
         update = UpdateLog.last()
@@ -56,9 +62,9 @@ def main(task, verbosity, force, debug):
         if verbosity == 0:
             poll_time = poll.isoformat() if poll is not None else None
             update_time = update.isoformat() if update is not None else None
-            print("{0} {1}".format(poll_time, update_time))
+            message("{0} {1}".format(poll_time, update_time))
         else:
-            print("Last poll: {0}\nLast update: {1}".format(poll, update))
+            message("Last poll: {0}\nLast update: {1}".format(poll, update))
 
     if debug:
         dump_queries(task)
