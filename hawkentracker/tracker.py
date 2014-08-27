@@ -323,7 +323,7 @@ def poll_servers():
 
 
 def update_all(force=False):
-    success = True
+    success = False
     players = 0
     matches = 0
     rankings = False
@@ -344,7 +344,6 @@ def update_all(force=False):
         matches = update_matches(last)
     except:
         logger.error("Exception encountered, rolling back...")
-        success = False
         try:
             db.session.rollback()
         except:
@@ -355,6 +354,9 @@ def update_all(force=False):
         # Update the rankings
         update_global_rankings()
         rankings = True
+
+        # Mark success
+        success = True
     finally:
         # Record the update session
         UpdateLog.record(success, start, datetime.now(), players, matches, rankings)
