@@ -234,35 +234,37 @@ def update_global_rankings():
         else:
             default = target.default.arg
 
-        with redis.pipeline(transaction=False) as pipe:
-            # Iterate over the players, building the current field's rankings
-            query = db.session.query(PlayerStats.player_id, target).\
-                               join(Player).\
-                               filter(target != default).\
-                               filter(Player.blacklisted == False).\
-                               order_by(target.desc())
+        # Iterate over the players, building the current field's rankings
+        query = db.session.query(PlayerStats.player_id, target).\
+                           join(Player).\
+                           filter(target != default).\
+                           filter(Player.blacklisted == False).\
+                           order_by(target.desc())
 
-            # Setup for the loop
-            index = 0
-            position = 0
-            last = False
-            for player, score in query.yield_per(app.config["TRACKER_BATCH_SIZE"]):
-                # Update the index and position
-                index += 1
-                if last != score:
-                    position = index
+        # Setup for the loop
+        index = 0
+        position = 0
+        last = False
+        batch = {}
+        for player, score in query.yield_per(app.config["TRACKER_BATCH_SIZE"]):
+            # Update the index and position
+            index += 1
+            if last != score:
+                position = index
+            last = score
 
-                # Add the player's position to the hash
-                pipe.hset(key, player, position)
+            # Set player's position
+            batch[player] = position
 
-                # Setup for the next iteration
-                last = score
+            if index % app.config["TRACKER_BATCH_SIZE"] == 0:
+                # Save the chunk of players
+                redis.hmset(key, batch)
+                batch = {}
 
-            # Set the total number of ranked players
-            pipe.hset(key, "total", index)
 
-            # Flush the field's rankings
-            pipe.execute()
+        # Set the total number of ranked players
+        batch["total"] = index
+        redis.hmset(key, batch)
 
 
 def poll_servers():
