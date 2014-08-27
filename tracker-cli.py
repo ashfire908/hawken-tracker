@@ -7,26 +7,12 @@ import argparse
 import logging
 from flask.ext.sqlalchemy import get_debug_queries
 from hawkentracker import app
-from hawkentracker.model import db, PollLog, UpdateLog
+from hawkentracker.model import db, PollLog, UpdateLog, dump_queries
 from hawkentracker.tracker import poll_servers, update_all
 
 
 def setup_logging(level):
     logging.basicConfig(format="%(asctime)s %(message)s", level=level)
-
-
-def dump_queries():
-    with open("queries", "w") as out:
-        for query in get_debug_queries():
-            out.write("-- Query ({0:.3f}s)\nStatement: {1}\n".format(query.duration, query.statement))
-            if isinstance(query.parameters, dict):
-                for k, v in sorted(query.parameters.items()):
-                    if isinstance(v, str):
-                        v = "'" + v + "'"
-                    out.write("Param: {0} = {1}\n".format(k, v))
-            else:
-                for item in query.parameters:
-                    out.write("Param: {0}\n".format(item))
 
 
 def main(task, verbosity, force, debug):
@@ -75,7 +61,7 @@ def main(task, verbosity, force, debug):
             print("Last poll: {0}\nLast update: {1}".format(poll, update))
 
     if debug:
-        dump_queries()
+        dump_queries(task)
 
 
 if __name__ == "__main__":
