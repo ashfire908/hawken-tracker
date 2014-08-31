@@ -120,7 +120,7 @@ def verify_password(user, password):
 
 
 def set_password(id, password, silent=False):
-    validate_password()
+    validate_password(password)
 
     user = get_user(id)
     user.password = pwd_context.encrypt(password)

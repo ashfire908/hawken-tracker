@@ -3,7 +3,7 @@
 
 from flask.ext.sqlalchemy import SQLAlchemy, get_debug_queries
 from hawkentracker import app
-from hawkentracker.mappings import LinkStatus, JoinPrivacy, Confirmation
+from hawkentracker.mappings import LinkStatus
 
 db = SQLAlchemy(app)
 

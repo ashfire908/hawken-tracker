@@ -8,7 +8,7 @@ from hawkenapi.util import copyappend
 from hawkentracker import app
 from hawkentracker.account import get_user
 from hawkentracker.mappings import LinkStatus, CoreRole, default_privacy
-from hawkentracker.model import Player, Match, UserRole, db
+from hawkentracker.model import Player, Match, UserRole
 
 logger = logging.getLogger(__name__)
 

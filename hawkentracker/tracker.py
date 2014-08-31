@@ -261,7 +261,6 @@ def update_global_rankings():
                 redis.hmset(key, batch)
                 batch = {}
 
-
         # Set the total number of ranked players
         batch["total"] = index
         redis.hmset(key, batch)

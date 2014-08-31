@@ -6,7 +6,6 @@ import sys
 import time
 import argparse
 import logging
-from flask.ext.sqlalchemy import get_debug_queries
 from hawkentracker import app
 from hawkentracker.model import db, PollLog, UpdateLog, dump_queries
 from hawkentracker.tracker import poll_servers, update_all
