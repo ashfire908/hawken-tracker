@@ -30,43 +30,46 @@ def main(task, verbosity, force, debug):
         setup_logging(logging.INFO)
     elif verbosity >= 3:
         setup_logging(logging.DEBUG)
-
-    # Perform the task given
-    if task == "setup":
-        if verbosity >= 1:
-            message("Setting up the database...")
-
-        db.create_all()
-
-        if verbosity >= 1:
-            message("Setup complete!")
-    elif task == "poll":
-        if verbosity >= 1:
-            message("Polling servers for players and matches.")
-        players, matches = poll_servers()
-
-        if verbosity >= 1:
-            message("Updated {0} players and {1} matches.".format(players, matches))
-    elif task == "update":
-        if verbosity >= 1:
-            message("Updating rankings and cached player/match data.")
-        players, matches, rankings = update_all(force=force)
-
-        if verbosity >= 1:
-            message("Updated {0} players and {1} matches.".format(players, matches))
-    elif task == "last":
-        poll = PollLog.last()
-        update = UpdateLog.last()
-
-        if verbosity == 0:
-            poll_time = poll.isoformat() if poll is not None else None
-            update_time = update.isoformat() if update is not None else None
-            message("{0} {1}".format(poll_time, update_time))
-        else:
-            message("Last poll: {0}\nLast update: {1}".format(poll, update))
-
     if debug:
-        dump_queries(task)
+        app.debug = True
+
+    try:
+        # Perform the task given
+        if task == "setup":
+            if verbosity >= 1:
+                message("Setting up the database...")
+
+            db.create_all()
+
+            if verbosity >= 1:
+                message("Setup complete!")
+        elif task == "poll":
+            if verbosity >= 1:
+                message("Polling servers for players and matches.")
+            players, matches = poll_servers()
+
+            if verbosity >= 1:
+                message("Updated {0} players and {1} matches.".format(players, matches))
+        elif task == "update":
+            if verbosity >= 1:
+                message("Updating rankings and cached player/match data.")
+            players, matches, rankings = update_all(force=force)
+
+            if verbosity >= 1:
+                message("Updated {0} players and {1} matches.".format(players, matches))
+        elif task == "last":
+            poll = PollLog.last()
+            update = UpdateLog.last()
+
+            if verbosity == 0:
+                poll_time = poll.isoformat() if poll is not None else None
+                update_time = update.isoformat() if update is not None else None
+                message("{0} {1}".format(poll_time, update_time))
+            else:
+                message("Last poll: {0}\nLast update: {1}".format(poll, update))
+    finally:
+        if debug:
+            dump_queries(task)
 
 
 if __name__ == "__main__":
