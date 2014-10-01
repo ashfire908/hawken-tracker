@@ -202,16 +202,17 @@ def update_match_averages(match):
                        join(MatchPlayer, PlayerStats.player_id == MatchPlayer.player_id).\
                        filter(MatchPlayer.match_id == match.id).all()
 
-    # Get the player mmrs and levels
-    mmrs, levels = zip(*stats)
-    mmrs = [mmr for mmr in mmrs if mmr is not None]
+    if len(stats) > 0:
+        # Get the player mmrs and levels
+        mmrs, levels = zip(*stats)
+        mmrs = [mmr for mmr in mmrs if mmr is not None]
 
-    # Update stats
-    if len(mmrs) > 0:
-        match.average_mmr = sum(mmrs) / len(mmrs)
-    if len(levels) > 0:
-        match.average_level = sum(levels) / len(levels)
-    db.session.add(match)
+        # Update stats
+        if len(mmrs) > 0:
+            match.average_mmr = sum(mmrs) / len(mmrs)
+        if len(levels) > 0:
+            match.average_level = sum(levels) / len(levels)
+        db.session.add(match)
 
 
 def update_global_rankings():
