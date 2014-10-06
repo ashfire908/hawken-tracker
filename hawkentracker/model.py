@@ -56,12 +56,15 @@ def column_windows(session, column, windowsize, *conditions):
         yield int_for_range(start, end)
 
 
-def windowed_query(q, column, windowsize, *conditions):
+def windowed_query(q, column, windowsize, *conditions, streaming=True):
     """"Break a Query into windows on a given column."""
 
     for whereclause in column_windows(q.session, column, windowsize, *conditions):
-        for row in q.filter(whereclause).order_by(column):
-            yield row
+        if streaming:
+            for row in q.filter(whereclause).order_by(column):
+                yield row
+        else:
+            yield q.filter(whereclause).order_by(column).all()
 
 
 class NativeIntEnum(db.TypeDecorator):

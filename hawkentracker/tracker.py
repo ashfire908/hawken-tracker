@@ -4,7 +4,7 @@
 import logging
 from datetime import datetime
 from sqlalchemy import func
-from sqlalchemy.orm import contains_eager
+from sqlalchemy.orm import joinedload, contains_eager
 from hawkentracker import app
 from hawkentracker.interface import get_api, api_wrapper, get_redis, format_redis_key
 from hawkentracker.model import db, windowed_query, Player, PlayerStats, Match, MatchPlayer, PollLog, UpdateLog
@@ -89,7 +89,7 @@ def update_players(last):
     logger.info("[Players] Updating players")
 
     # Get the list of players to update
-    query = Player.query
+    query = Player.query.options(joinedload(Player.stats))
     filters = []
     if last is not None:
         filters.append(Player.last_seen > last)
@@ -99,7 +99,7 @@ def update_players(last):
     # Iterate over the players
     i = 1
     count = 0
-    for chunk in chunks(windowed_query(query, Player.last_seen, app.config["TRACKER_BATCH_SIZE"], *filters), app.config["TRACKER_BATCH_SIZE"]):
+    for chunk in windowed_query(query, Player.last_seen, app.config["TRACKER_BATCH_SIZE"], *filters, streaming=False):
         # Update the stats
         logger.debug("[Players] Updating stats for chunk %d", i)
         update_player_stats(chunk, update_time)
@@ -126,18 +126,15 @@ def update_player_stats(players, update_time):
     # Using the cache here can fill up the redis backend with player data, so we skip it here.
     stats = {data["Guid"]: data for data in api_wrapper(lambda: get_api().get_user_stats(ids, cache_skip=True))}
 
-    # Update existing players
-    found = []
-    for playerstats in PlayerStats.query.filter(PlayerStats.player_id.in_(ids)):
-        found.append(playerstats.player_id)
-        playerstats.update(stats[playerstats.player_id], update_time)
-        db.session.add(playerstats)
-
-    # Add new players
-    for player in (player for player in ids if player not in found):
-        playerstats = PlayerStats(player_id=player)
-        playerstats.update(stats[player], update_time)
-        db.session.add(playerstats)
+    # Update players
+    for player in players:
+        if player.stats is None:
+            player_stats = PlayerStats(player_id=player.id)
+            player_stats.update(stats[player.id], update_time)
+            db.session.add(player_stats)
+        else:
+            player.stats.update(stats[player.id], update_time)
+            db.session.add(player.stats)
 
 
 def update_player_regions(players):
