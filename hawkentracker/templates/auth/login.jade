@@ -4,7 +4,7 @@ block content
     .page-header
         h1 Login
 
-    form.form-horizontal(action=url_for("login", next=request.args.next), method="post", role="form")
+    form.form-horizontal(action=url_for("auth.login", next=request.args.next), method="post", role="form")
         .form-group
             label.col-sm-2.control-label(for="username") Username
             .col-sm-2
@@ -16,4 +16,4 @@ block content
         .form-group
             .col-sm-offset-2.col-sm-2.btn-group
                 button.btn.btn-success(type="submit") Sign in
-                a.btn.btn-default(href=url_for("register", next=request.args.next)) Register
+                a.btn.btn-default(href=url_for("auth.register", next=request.args.next)) Register

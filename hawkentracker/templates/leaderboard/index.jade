@@ -15,7 +15,7 @@ block js
             script(type="text/javascript", src=url_for("static", filename="js/dataTables.bootstrap.min.js"))
     script(type="text/javascript").
         $(document).ready(function() {
-            setup_leaderboard("#leaderboard", "#leaderboard_sort ul", ".active-sort", "#{url_for('global_leaderboard')}", "#{default_sort}");
+            setup_leaderboard("#leaderboard", "#leaderboard_sort ul", ".active-sort", "#{url_for('data.global_leaderboard')}", "#{default_sort}");
         });
 
 block content

@@ -6,21 +6,20 @@ from datetime import datetime
 from passlib.context import CryptContext
 from itsdangerous import URLSafeTimedSerializer
 from sqlalchemy import func
-from flask import session, url_for
-from hawkentracker import app
+from flask import current_app, session, url_for
 from hawkentracker.interface import send_email
 from hawkentracker.model import db, User, Player
 from hawkentracker.mappings import LinkStatus, CoreRole
 
 pwd_context = CryptContext(schemes=["sha256_crypt"])
-serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"])
+serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
 
 
 class ValidationError(ValueError):
     pass
 
 
-@app.before_request
+@current_app.before_request
 def active_login_check():
     active_user = session.get("user", None)
     if active_user is not None and User.query.get(active_user) is None:
@@ -66,7 +65,7 @@ def validate_password(password):
     if password == "":
         raise ValidationError("Password cannot be blank")
 
-    if len(password) < app.config.get("PASSWORD_MIN_LENGTH", 0):
+    if len(password) < current_app.config.get("PASSWORD_MIN_LENGTH", 0):
         raise ValidationError("Password is too short")
 
 
@@ -149,7 +148,7 @@ def generate_email_verify_token(user):
 
 
 def load_email_verify_token(token):
-    data = serializer.loads(token, max_age=app.config["EMAIL_TOKEN_MAX_AGE"])
+    data = serializer.loads(token, max_age=current_app.config["EMAIL_TOKEN_MAX_AGE"])
 
     user = get_user(data["user"])
     if user is None:
@@ -174,7 +173,7 @@ def generate_password_reset_token(user):
 
 
 def load_password_reset_token(token):
-    data = serializer.loads(token, max_age=app.config["RESET_TOKEN_MAX_AGE"])
+    data = serializer.loads(token, max_age=current_app.config["RESET_TOKEN_MAX_AGE"])
 
     user = get_user(data["user"])
     if user is None:
@@ -197,7 +196,7 @@ If you did not register this account, you can simply ignore this message.
 
 Thanks,
 Hawken Tracker
-{site_url}""".format(user=user, verify_url=app.config["SITE_ADDRESS"] + url_for("verify_email", token=token), site_url=app.config["SITE_ADDRESS"])
+{site_url}""".format(user=user, verify_url=current_app.config["SITE_ADDRESS"] + url_for("account.verify_email", token=token), site_url=current_app.config["SITE_ADDRESS"])
 
     send_email(user.email_address, "Welcome to the Hawken Leaderboards", message)
 
@@ -212,7 +211,7 @@ Email: {user.email}
 
 Thanks,
 Hawken Tracker
-{site_url}""".format(user=user, site_url=app.config["SITE_ADDRESS"])
+{site_url}""".format(user=user, site_url=current_app.config["SITE_ADDRESS"])
 
     send_email(user.email_address, "Hawken Leaderboards - Account details", message)
 
@@ -228,7 +227,7 @@ If this is not your account, you can simply ignore this message.
 
 Thanks,
 Hawken Tracker
-{site_url}""".format(user=user, verify_url=app.config["SITE_ADDRESS"] + url_for("verify_email", token=token), site_url=app.config["SITE_ADDRESS"])
+{site_url}""".format(user=user, verify_url=current_app.config["SITE_ADDRESS"] + url_for("account.verify_email", token=token), site_url=current_app.config["SITE_ADDRESS"])
 
     send_email(user.email_address, "Hawken Leaderboards - Verify your email address", message)
 
@@ -244,7 +243,7 @@ If you did not request this, you can safely ignore this message.
 
 Thanks,
 Hawken Tracker
-{site_url}""".format(user=user, reset_url=app.config["SITE_ADDRESS"] + url_for("password_reset", token=token), site_url=app.config["SITE_ADDRESS"])
+{site_url}""".format(user=user, reset_url=current_app.config["SITE_ADDRESS"] + url_for("account.password_reset", token=token), site_url=current_app.config["SITE_ADDRESS"])
 
     send_email(user.email_address, "Hawken Leaderboards - Password reset requested", message)
 
@@ -258,7 +257,7 @@ If you did not change it, please contact us at {support_email} right away.
 
 Thanks,
 Hawken Tracker
-{site_url}""".format(user=user, support_email=app.config["SUPPORT_EMAIL"], site_url=app.config["SITE_ADDRESS"])
+{site_url}""".format(user=user, support_email=current_app.config["SUPPORT_EMAIL"], site_url=current_app.config["SITE_ADDRESS"])
 
     send_email(user.email_address, "Hawken Leaderboards - Password changed", message)
 

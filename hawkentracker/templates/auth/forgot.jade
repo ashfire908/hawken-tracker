@@ -4,7 +4,7 @@ block content
     .page-header
         h1 Recover username/password
 
-    form.form-horizontal(action=url_for("login", next=request.args.next), method="post", role="form")
+    form.form-horizontal(action=url_for("auth.forgot", next=request.args.next), method="post", role="form")
         .form-group
             p Forgot your username? use this
             label.col-sm-2.control-label(for="email") Email

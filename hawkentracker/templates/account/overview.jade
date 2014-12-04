@@ -5,11 +5,11 @@ block content
         if settings or password or delete
             .btn-group.pull-right
                 if settings
-                    a.btn.btn-default(href=url_for("account_settings")) Settings
+                    a.btn.btn-default(href=url_for("account.settings")) Settings
                 if password
-                    a.btn.btn-default(href=url_for("account_password")) Password
+                    a.btn.btn-default(href=url_for("account.password")) Password
                 if delete
-                    a.btn.btn-danger(href=url_for("delete_account")) Delete
+                    a.btn.btn-danger(href=url_for("account.delete")) Delete
         h1 Your Account
 
 
@@ -42,16 +42,16 @@ block content
                     for name, player in players.items() | sort
                         tr
                             td
-                                a(href=url_for("view_player", target=name))= name
+                                a(href=url_for("player.view", target=name))= name
                             if player.link_status == LinkStatus.pending
                                 td Pending
                                 td
-                                    a.btn.btn-success(href=url_for("account_link_player", target=name)) Confirm
+                                    a.btn.btn-success(href=url_for("account.link_player", target=name)) Confirm
                                     | 
-                                    a.btn.btn-danger(href=url_for("account_unlink_player", target=name)) Remove
+                                    a.btn.btn-danger(href=url_for("account.unlink_player", target=name)) Remove
                             else
                                 td Linked
                                 td
-                                    a.btn.btn-default(href=url_for("player_settings", target=name)) Settings
+                                    a.btn.btn-default(href=url_for("player.settings", target=name)) Settings
                                     | 
-                                    a.btn.btn-danger(href=url_for("account_unlink_player", target=name)) Remove
+                                    a.btn.btn-danger(href=url_for("account.unlink_player", target=name)) Remove

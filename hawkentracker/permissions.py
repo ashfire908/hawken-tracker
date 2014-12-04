@@ -3,9 +3,8 @@
 
 import types
 import logging
-from flask import g
+from flask import current_app, g
 from hawkenapi.util import copyappend
-from hawkentracker import app
 from hawkentracker.account import get_user
 from hawkentracker.mappings import LinkStatus, CoreRole, default_privacy
 from hawkentracker.model import Player, Match, UserRole
@@ -704,7 +703,7 @@ def match_stats(path):
     match = Match.query.get(path[1])
     linked_players = user_linked_players(get_current_user())
 
-    threshold = app.config["MATCH_STATS_THRESHOLD"]
+    threshold = current_app.config["MATCH_STATS_THRESHOLD"]
     count = 0
     if count < threshold:
         for player in match.players:
@@ -716,7 +715,7 @@ def match_stats(path):
                 count += 1
 
             if count >= threshold:
-                # There are enough players in the match with accessable stats to meet the threshold
+                # There are enough players in the match with accessible stats to meet the threshold
                 return True
 
     return False

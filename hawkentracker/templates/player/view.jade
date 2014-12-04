@@ -16,13 +16,13 @@ block js
     if matches
         script(type="text/javascript").
             $(document).ready(function() {
-                setup_player_matches("#matches", "#{url_for('player_matches', player=info["name"])}");
+                setup_player_matches("#matches", "#{url_for('data.player_matches', player=info["name"])}");
             });
 
 block content
     .page-header
         if edit["settings"] or edit["blacklist"]
-            a.btn.btn-primary.pull-right(href="#{url_for('player_settings', target=info["name"])}") Settings
+            a.btn.btn-primary.pull-right(href=url_for('player.settings', target=info["name"])) Settings
         h1= info.name
 
 
@@ -97,9 +97,9 @@ block content
                 ul
                     for player in linked.players
                         li
-                            a(href=url_for("view_player", target=player))= player
+                            a(href=url_for("player.view", target=player))= player
         if linked.user
             p
                 | This player is linked to 
-                a(href=url_for("view_user", user=linked.user.id))= linked.user.name
+                a(href=url_for("user.view", user=linked.user.id))= linked.user.name
                 | 's account.

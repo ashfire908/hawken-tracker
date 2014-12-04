@@ -5,11 +5,10 @@ import logging
 from datetime import datetime
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload, contains_eager
-from hawkentracker import app
+from flask import current_app
 from hawkentracker.interface import get_api, api_wrapper, get_redis, format_redis_key
 from hawkentracker.model import db, windowed_query, Player, PlayerStats, Match, MatchPlayer, PollLog, UpdateLog
 from hawkentracker.mappings import ranking_fields
-from hawkentracker.util import chunks
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +98,7 @@ def update_players(last):
     # Iterate over the players
     i = 1
     count = 0
-    for chunk in windowed_query(query, Player.last_seen, app.config["TRACKER_BATCH_SIZE"], *filters, streaming=False):
+    for chunk in windowed_query(query, Player.last_seen, current_app.config["TRACKER_BATCH_SIZE"], *filters, streaming=False):
         # Update the stats
         logger.debug("[Players] Updating stats for chunk %d", i)
         update_player_stats(chunk, update_time)
@@ -168,13 +167,13 @@ def update_matches(last):
     # Iterate over the matches
     i = 1
     count = 0
-    for match in windowed_query(query, Match.last_seen, app.config["TRACKER_BATCH_SIZE"], *filters):
+    for match in windowed_query(query, Match.last_seen, current_app.config["TRACKER_BATCH_SIZE"], *filters):
         # Update the averages
         update_match_averages(match)
 
         count += 1
 
-        if count % app.config["TRACKER_BATCH_SIZE"] == 0:
+        if count % current_app.config["TRACKER_BATCH_SIZE"] == 0:
             # Commit the chunk
             logger.debug("[Matches] Committing chunk %d", i)
             db.session.commit()
@@ -183,7 +182,7 @@ def update_matches(last):
 
             i += 1
 
-    if count % app.config["TRACKER_BATCH_SIZE"] != 0:
+    if count % current_app.config["TRACKER_BATCH_SIZE"] != 0:
         # Commit the chunk
         logger.debug("[Matches] Committing chunk %d", i)
         db.session.commit()
@@ -244,7 +243,7 @@ def update_global_rankings():
         position = 0
         last = False
         batch = {}
-        for player, score in query.yield_per(app.config["TRACKER_BATCH_SIZE"]):
+        for player, score in query.yield_per(current_app.config["TRACKER_BATCH_SIZE"]):
             # Update the index and position
             index += 1
             if last != score:
@@ -254,7 +253,7 @@ def update_global_rankings():
             # Set player's position
             batch[player] = position
 
-            if index % app.config["TRACKER_BATCH_SIZE"] == 0:
+            if index % current_app.config["TRACKER_BATCH_SIZE"] == 0:
                 # Save the chunk of players
                 redis.hmset(key, batch)
                 batch = {}

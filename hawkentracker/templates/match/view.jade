@@ -71,6 +71,6 @@ block content
                             td [Private]
                         else
                             td
-                                a(href=url_for("view_player", target=player.name))= player.name
+                                a(href=url_for("player.view", target=player.name))= player.name
                         td= player.first_seen
                         td= player.last_seen

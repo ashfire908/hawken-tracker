@@ -38,7 +38,7 @@ def to_next(default="index"):
 
 def to_last():
     # Finish implmenting
-    return redirect(url_for("index"))
+    return redirect(url_for("leaderboard.index"))
 
 
 def format_stat(stat, field):

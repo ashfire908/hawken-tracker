@@ -1,9 +1,13 @@
 from __future__ import with_statement
+
+# Path hack
+import os, sys
+sys.path.append(os.getcwd())
+
 from alembic import context
-from sqlalchemy import engine_from_config, pool
 from logging.config import fileConfig
-from hawkentracker import app
-from hawkentracker.model import db
+from flask import current_app
+from hawkentracker import create_app
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -15,8 +19,7 @@ fileConfig(config.config_file_name)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
+from hawkentracker.model import db
 target_metadata = db.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -36,7 +39,7 @@ def run_migrations_offline():
     script output.
 
     """
-    context.configure(url=app.config["SQLALCHEMY_DATABASE_URI"], target_metadata=target_metadata)
+    context.configure(url=current_app.config["SQLALCHEMY_DATABASE_URI"], target_metadata=target_metadata)
 
     with context.begin_transaction():
         context.run_migrations()
@@ -60,8 +63,11 @@ def run_migrations_online():
     finally:
         connection.close()
 
-if context.is_offline_mode():
-    run_migrations_offline()
-else:
-    run_migrations_online()
 
+app = create_app()
+
+with app.app_context():
+    if context.is_offline_mode():
+        run_migrations_offline()
+    else:
+        run_migrations_online()
