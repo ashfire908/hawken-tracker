@@ -374,7 +374,11 @@ def get_global_rank(player, field):
     if isinstance(player, str):
         return decode_rank(redis.hget(format_redis_key("rank", field), player)), total
 
-    return {player: decode_rank(rank) for player, rank in zip(player, redis.hmget(format_redis_key("rank", field), player))}, total
+    if len(player) > 0:
+        return {player: decode_rank(rank) for player, rank in zip(player, redis.hmget(format_redis_key("rank", field), player))}, total
+
+    return {}, total
+
 
 
 def get_ranked_players(field, count, preload=None):
