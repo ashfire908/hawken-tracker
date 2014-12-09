@@ -1,0 +1,9 @@
+Hello {{ user.username }},
+
+Your email is not yet verified. To verify your email, please follow this link: {{ url_for("account.verify_email", token=verify_token, _external=True) }}
+
+If this is not your account, you can simply ignore this message.
+
+Thanks,
+Hawken Leaderboards
+{{ url_for("leaderboard.index", _external=True) }}

@@ -6,9 +6,9 @@ from datetime import datetime
 from passlib.context import CryptContext
 from itsdangerous import URLSafeTimedSerializer
 from sqlalchemy import func
-from flask import current_app, session, url_for
-from hawkentracker.interface import send_email
+from flask import current_app, session
 from hawkentracker.model import db, User, Player
+from hawkentracker.mailer import mail, welcome_email
 from hawkentracker.mappings import LinkStatus, CoreRole
 
 pwd_context = CryptContext(schemes=["sha256_crypt"])
@@ -98,7 +98,8 @@ def create_user(username, password, email, role_id):
     db.session.commit()
 
     # Send the welcome email
-    #send_welcome_email(user)
+    token = generate_email_verify_token(user)
+    mail.send(welcome_email(user, token))
 
 
 def delete_user(id):
@@ -118,7 +119,7 @@ def verify_password(user, password):
     return pwd_context.verify(password, current_password)
 
 
-def set_password(id, password, silent=False):
+def set_password(id, password):
     validate_password(password)
 
     user = get_user(id)
@@ -126,9 +127,6 @@ def set_password(id, password, silent=False):
     user.password_reset_token = None
     db.session.add(user)
     db.session.commit()
-
-    if not silent:
-        send_password_changed_email(user)
 
 
 def confirm_email(user):
@@ -183,83 +181,6 @@ def load_password_reset_token(token):
         raise ValidationError("Password reset token does not match the stored token")
 
     return user
-
-
-def send_welcome_email(user):
-    token = generate_email_verify_token(user)
-
-    message = """Hello {user.username},
-
-Welcome to the Hawken Tracker and Leaderboards. To verify your email, please follow this link: {verify_url}
-
-If you did not register this account, you can simply ignore this message.
-
-Thanks,
-Hawken Tracker
-{site_url}""".format(user=user, verify_url=current_app.config["SITE_ADDRESS"] + url_for("account.verify_email", token=token), site_url=current_app.config["SITE_ADDRESS"])
-
-    send_email(user.email_address, "Welcome to the Hawken Leaderboards", message)
-
-
-def send_reminder_email(user):
-    message = """Hello {user.username},
-
-This is a reminder of your account details, by request. If you did not request this email, you can safely ignore it.
-
-Username: {user.username}
-Email: {user.email}
-
-Thanks,
-Hawken Tracker
-{site_url}""".format(user=user, site_url=current_app.config["SITE_ADDRESS"])
-
-    send_email(user.email_address, "Hawken Leaderboards - Account details", message)
-
-
-def send_verification_email(user):
-    token = generate_email_verify_token(user)
-
-    message = """Hello {user.username},
-
-Email verification for your account has been requested. To verify your email, please follow this link: {verify_url}
-
-If this is not your account, you can simply ignore this message.
-
-Thanks,
-Hawken Tracker
-{site_url}""".format(user=user, verify_url=current_app.config["SITE_ADDRESS"] + url_for("account.verify_email", token=token), site_url=current_app.config["SITE_ADDRESS"])
-
-    send_email(user.email_address, "Hawken Leaderboards - Verify your email address", message)
-
-
-def send_password_reset_email(user):
-    token = generate_password_reset_token(user)
-
-    message = """Hello {user.username},
-
-A password reset has been requested. To reset your password, please follow this link: {reset_url}
-
-If you did not request this, you can safely ignore this message.
-
-Thanks,
-Hawken Tracker
-{site_url}""".format(user=user, reset_url=current_app.config["SITE_ADDRESS"] + url_for("account.password_reset", token=token), site_url=current_app.config["SITE_ADDRESS"])
-
-    send_email(user.email_address, "Hawken Leaderboards - Password reset requested", message)
-
-
-def send_password_changed_email(user):
-    message = """Hello {user.username},
-
-This is a notification that your password was recently changed. If this was you, then you can safely ignore this email.
-
-If you did not change it, please contact us at {support_email} right away.
-
-Thanks,
-Hawken Tracker
-{site_url}""".format(user=user, support_email=current_app.config["SUPPORT_EMAIL"], site_url=current_app.config["SITE_ADDRESS"])
-
-    send_email(user.email_address, "Hawken Leaderboards - Password changed", message)
 
 
 def link_player(id, player):

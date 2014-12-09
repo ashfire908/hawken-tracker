@@ -1,0 +1,12 @@
+Hello {{ user.username }},
+
+This is a reminder of your account details, by request.
+
+Username: {{ user.username }}
+Email: {{ user.email }}
+
+If you did not request this email, you can safely ignore it.
+
+Thanks,
+Hawken Leaderboards
+{{ url_for("leaderboard.index", _external=True) }}

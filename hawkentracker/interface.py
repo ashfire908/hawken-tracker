@@ -2,8 +2,6 @@
 # Hawken Tracker - External service helpers
 
 import logging
-import smtplib
-from email.mime.text import MIMEText
 from redis import StrictRedis
 from flask import current_app, g
 from requests.exceptions import HTTPError, Timeout
@@ -76,19 +74,6 @@ def teardown_api(exception):
     if client is not None and client.authed:
         redis = get_redis()
         redis.set(format_redis_key("api_token"), client.grant.token)
-
-
-def send_email(to, subject, message):
-    # Create the message
-    message = MIMEText(message)
-    message["Subject"] = subject
-    message["From"] = current_app.config["EMAIL_ADDRESS"]
-    message["To"] = to
-
-    # Send the email
-    connection = smtplib.SMTP(current_app.config["EMAIL_SERVER"])
-    connection.sendmail(current_app.config["EMAIL_ADDRESS"], to, message.as_string())
-    connection.quit()
 
 
 def get_player_id(player, callsign=True):

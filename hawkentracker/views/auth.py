@@ -3,8 +3,9 @@
 
 from sqlalchemy import func
 from flask import Blueprint, current_app, render_template, request, session, flash
-from hawkentracker.account import ValidationError, login_user, logout_user, create_user, send_password_reset_email, send_reminder_email
+from hawkentracker.account import ValidationError, login_user, logout_user, create_user, generate_password_reset_token
 from hawkentracker.helpers import to_next, load_globals, access_denied
+from hawkentracker.mailer import mail, password_reset_email, reminder_email
 from hawkentracker.mappings import CoreRole
 from hawkentracker.model import User
 from hawkentracker.permissions import permissions_view
@@ -48,7 +49,8 @@ def forgot():
         if request.form["username"] != "":
             user = User.query.filter(func.lower(User.username) == request.form["username"].lower()).first()
             if user is not None:
-                send_password_reset_email(user)
+                token = generate_password_reset_token(user)
+                mail.send(password_reset_email(user, token))
 
             flash("Password reset email sent.", "success")
             return to_next("login")
@@ -56,7 +58,7 @@ def forgot():
         if request.form["email"] != "":
             user = User.query.filter(func.lower(User.email) == request.form["email"].lower()).first()
             if user is not None:
-                send_reminder_email(user)
+                mail.send(reminder_email(user))
                 flash("A reminder email with your account details has been sent.", "success")
                 return to_next("login")
 

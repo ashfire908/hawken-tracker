@@ -22,6 +22,10 @@ def create_app(config_filename=None, config_parameters=None):
     from hawkentracker.model import db
     db.init_app(app)
 
+    # Setup mailer
+    from hawkentracker.mailer import mail
+    mail.init_app(app)
+
     # Use app context while setting up views
     with app.app_context():
         # Setup views

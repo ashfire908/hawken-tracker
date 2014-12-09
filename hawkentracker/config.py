@@ -34,12 +34,6 @@ class DefaultSettings:
     HAWKEN_API_ATTEMPTS = 1
     HAWKEN_API_TIMEOUT = 15
     TRACKER_BATCH_SIZE = 500
-    SITE_ADDRESS = "http://localhost:5000"
-    EMAIL_ADDRESS = "localhost"
-    EMAIL_SERVER = None
-    EMAIL_USER = None
-    EMAIL_PASS = None
-    SUPPORT_EMAIL = None
     MATCH_STATS_THRESHOLD = 2
     RANK_PERCENT_THRESHOLD = 0.01
 
