@@ -1,10 +1,16 @@
 # -*- coding: utf-8 -*-
 # Hawken Tracker - DB Models
 
+import re
+
+from passlib.context import CryptContext
+from flask import current_app
 from flask.ext.sqlalchemy import SQLAlchemy, get_debug_queries
 from hawkentracker.mappings import LinkStatus
 
 db = SQLAlchemy()
+email_re = re.compile(r"^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$", re.I)
+pwd_context = CryptContext(schemes=["sha256_crypt"])
 
 
 def dump_queries(name):
@@ -299,6 +305,24 @@ class User(db.Model):
     role_id = db.Column(db.Integer, db.ForeignKey("user_roles.id"), nullable=False)
     view_privacy = db.Column(db.Integer)
     link_privacy = db.Column(db.Integer)
+
+    def verify_password(self, password):
+        return pwd_context.verify(password, self.password)
+
+    @db.validates("username")
+    def validate_username(self, key, username):
+        assert len(username) >= 3
+        return username
+
+    @db.validates("password")
+    def validate_password(self, key, password):
+        assert len(password) >= current_app.config.get("PASSWORD_MIN_LENGTH", 0)
+        return pwd_context.encrypt(password)
+
+    @db.validates("email")
+    def validate_email(self, key, email):
+        assert email_re.match(email) is not None
+        return email
 
     def __repr__(self):
         return "<User(id={0}, username='{1}')>".format(self.id, self.username)

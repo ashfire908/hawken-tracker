@@ -2,7 +2,7 @@
 # Hawken Tracker - Account views
 
 from flask import Blueprint, render_template, request, flash, session
-from hawkentracker.account import get_user, verify_password, set_password, ValidationError, load_password_reset_token, link_player, unlink_player, \
+from hawkentracker.account import get_user, set_password, ValidationError, load_password_reset_token, link_player, unlink_player, \
     load_email_verify_token, confirm_email, delete_user, logout_user
 from hawkentracker.helpers import to_next, to_last, login_required, access_denied, load_globals
 from hawkentracker.interface import get_api, get_player_id
@@ -78,7 +78,7 @@ def password():
         # Check fields
         if request.args["new_password"] != request.args["confirm_password"]:
             flash("The new passwords must match.", "error")
-        elif not verify_password(user, request.args["current_password"]):
+        elif user.verify_password(request.args["current_password"]):
             flash("The current password does not match the password on file.", "error")
         else:
             try:

@@ -2,8 +2,8 @@
 # Hawken Tracker - Accounts
 
 import random
+
 from datetime import datetime
-from passlib.context import CryptContext
 from itsdangerous import URLSafeTimedSerializer
 from sqlalchemy import func
 from flask import current_app, session
@@ -11,7 +11,6 @@ from hawkentracker.model import db, User, Player
 from hawkentracker.mailer import mail, welcome_email
 from hawkentracker.mappings import LinkStatus, CoreRole
 
-pwd_context = CryptContext(schemes=["sha256_crypt"])
 serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
 
 
@@ -37,7 +36,7 @@ def get_user(user=None):
 
 def login_user(username, password):
     user = User.query.filter(func.lower(User.username) == username.lower()).first()
-    if user is None or not pwd_context.verify(password, user.password):
+    if user is None or not user.verify_password(password):
         return False
 
     # Setup session
@@ -53,44 +52,11 @@ def logout_user():
     return False
 
 
-def validate_username(username):
-    if username == "":
-        raise ValidationError("Username cannot be blank")
-
-    if User.query.filter(func.lower(User.username) == username.lower()).count() > 0:
-        raise ValidationError("Username already in use")
-
-
-def validate_password(password):
-    if password == "":
-        raise ValidationError("Password cannot be blank")
-
-    if len(password) < current_app.config.get("PASSWORD_MIN_LENGTH", 0):
-        raise ValidationError("Password is too short")
-
-
-def validate_email(email, ignore_existing=False):
-    if email == "":
-        raise ValidationError("Email cannot be blank")
-
-    at_sign = email.find("@")
-    if at_sign == -1 or email.find(".") < at_sign:
-        raise ValidationError("Email address is not valid")
-
-    if ignore_existing or User.query.filter(func.lower(User.email) == email.lower()).count() > 0:
-        raise ValidationError("Email already in use")
-
-
 def create_user(username, password, email, role_id):
-    # Validate fields
-    validate_username(username)
-    validate_password(password)
-    validate_email(email)
-
     # Create the user
     user = User()
     user.username = username
-    user.password = pwd_context.encrypt(password)
+    user.password = password
     user.creation = datetime.now()
     user.email = email
     user.role_id = role_id
@@ -110,20 +76,9 @@ def delete_user(id):
     User.query.filter(User.id == id).delete()
 
 
-def verify_password(user, password):
-    if isinstance(user, User):
-        current_password = user.password
-    else:
-        current_password = db.session.query(User.password).filter(User.id == user).scalar()
-
-    return pwd_context.verify(password, current_password)
-
-
 def set_password(id, password):
-    validate_password(password)
-
     user = get_user(id)
-    user.password = pwd_context.encrypt(password)
+    user.password = password
     user.password_reset_token = None
     db.session.add(user)
     db.session.commit()
