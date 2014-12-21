@@ -2,22 +2,8 @@
 # Hawken Tracker - Helpers
 
 import re
-from datetime import datetime
-from functools import wraps
-from flask import request, url_for, redirect, g, flash, session
-from hawkentracker.account import get_user
-from hawkentracker.model import UpdateLog
-from hawkentracker.util import format_dhms
 
-
-def login_required(f):
-    @wraps(f)
-    def login_check(*args, **kwargs):
-        if not session.get("user", False):
-            flash("You must be logged in first.", "warning")
-            return redirect_to("login")
-        return f(*args, **kwargs)
-    return login_check
+from flask import request, url_for, redirect, flash
 
 
 def access_denied(message):
@@ -29,6 +15,10 @@ def redirect_to(target):
     return redirect(url_for(target, next=request.endpoint))
 
 
+def to_index():
+    return redirect(url_for("leaderboard.index"))
+
+
 def to_next(default="index"):
     next = request.args.get("next", default)
     if next == request.endpoint or next == "":
@@ -38,7 +28,42 @@ def to_next(default="index"):
 
 def to_last():
     # Finish implmenting
-    return redirect(url_for("leaderboard.index"))
+    to_index()
+
+
+def format_dhms(seconds, skip=0):
+    minutes, seconds = divmod(int(seconds), 60)
+    hours, minutes = divmod(minutes, 60)
+    days, hours = divmod(hours, 24)
+    if skip > 0:
+        seconds = 0
+        if skip > 1:
+            minutes = 0
+            if skip > 2:
+                hours = 0
+                # I'm not skipping days.
+    output = []
+    if days != 0:
+        if days > 1:
+            output.append("{} days".format(days))
+        else:
+            output.append("{} day".format(days))
+    if hours != 0:
+        if hours > 1:
+            output.append("{} hours".format(hours))
+        else:
+            output.append("{} hour".format(hours))
+    if minutes != 0:
+        if minutes > 1:
+            output.append("{} minutes".format(minutes))
+        else:
+            output.append("{} minute".format(minutes))
+    if seconds != 0:
+        if seconds > 1:
+            output.append("{} seconds".format(seconds))
+        else:
+            output.append("{} second".format(seconds))
+    return " ".join(output)
 
 
 def format_stat(stat, field):
@@ -75,20 +100,3 @@ def parse_serverside(form):
             insert(output, keys, v)
 
     return output
-
-
-def load_globals():
-    update = g.get("since_update", None)
-    if update is None:
-        update = UpdateLog.last()
-
-        if update is None:
-            g.since_update = False
-        else:
-            g.since_update = format_dhms((datetime.now() - update).total_seconds())
-
-    user_name = g.get("user_name", None)
-    if user_name is None:
-        user = get_user()
-
-        g.user_name = user.username if user is not None else False

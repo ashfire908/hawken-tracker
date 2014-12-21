@@ -4,10 +4,10 @@
 import types
 import logging
 from flask import current_app, g
+from flask.ext.login import current_user
 from hawkenapi.util import copyappend
-from hawkentracker.account import get_user
-from hawkentracker.mappings import LinkStatus, CoreRole, default_privacy
-from hawkentracker.model import Player, Match, UserRole
+from hawkentracker.mappings import LinkStatus, default_privacy
+from hawkentracker.model import User, Player, Match
 
 logger = logging.getLogger(__name__)
 
@@ -61,28 +61,11 @@ class PermissionView:
     __getattr__ = __getitem__
 
 
-# Helpers
-def get_current_user():
-    user = g.get("user", None)
-    if user is None:
-        # Lookup and set user
-        user = get_user()
-        if user is None:
-            user = False
-        g.user = user
-
-    return user
-
-
 def get_permission(permission, names=None):
     user_permissions = g.get("user_permissions", None)
     if user_permissions is None:
         # Build permissions list
-        user = get_current_user()
-        if user is False:
-            user_role = UserRole.query.get(CoreRole.anonymous.value)
-        else:
-            user_role = user.role
+        user_role = current_user.role
 
         if user_role.superadmin:
             user_permissions = True
@@ -131,12 +114,6 @@ def satifies_perm(permission, power, default):
     return privacy <= permission
 
 
-def user_linked_players(user):
-    if user:
-        return [player.id for player in user.players if player.link_status == LinkStatus.linked]
-    return []
-
-
 # Permission handlers
 def basic_flag(path):
     return get_permission(path)[0]
@@ -148,13 +125,11 @@ def user_view(path):
         # Global permission given
         return True
 
-    user = get_current_user()
-
-    if user and path[1] == user.id:
+    if path[1] == current_user.id:
         # User is viewing themselves
         return True
 
-    if satifies_perm(perm, get_user(path[1]).view_privacy, default):
+    if satifies_perm(perm, User.query.get(path[1]).view_privacy, default):
         # User meets the privacy requirement
         return True
 
@@ -167,9 +142,7 @@ def user_delete(path):
         # Global permission given
         return True
 
-    user = get_current_user()
-
-    if user and path[1] == user.id:
+    if path[1] == current_user.id:
         # User is deleting themselves
         return True
 
@@ -180,9 +153,7 @@ def user_settings(path):
         # Global permission given
         return True
 
-    user = get_current_user()
-
-    if user and path[1] == user.id:
+    if path[1] == current_user.id:
         # User is editing their own settings
         return True
 
@@ -195,9 +166,7 @@ def user_role(path):
         # Global permission not given
         return False
 
-    user = get_current_user()
-
-    if user and path[1] == user.id:
+    if path[1] == current_user.id:
         # User is editing their own role
         return False
 
@@ -210,9 +179,7 @@ def user_password(path):
         # Global permission given
         return True
 
-    user = get_current_user()
-
-    if user and path[1] == user.id:
+    if path[1] == current_user.id:
         # User is changing their own password
         return True
 
@@ -225,13 +192,11 @@ def user_link_list(path):
         # Global permission given
         return True
 
-    user = get_current_user()
-
-    if user and path[1] == user.id:
+    if path[1] == current_user.id:
         # User is listing their own linked players
         return True
 
-    if satifies_perm(perm, get_user(path[1]).link_privacy, default):
+    if satifies_perm(perm, User.query.get(path[1]).link_privacy, default):
         # User meets the privacy requirement
         return True
 
@@ -244,13 +209,11 @@ def user_link_add(path):
         # Global permission given
         return True
 
-    user = get_current_user()
-
-    if user and path[1] == user.id:
+    if path[1] == current_user.id:
         # User matches requested user
         player = Player.query.get(path[3])
 
-        if player.link_user == user.id and player.link_status == LinkStatus.pending:
+        if player.link_user == current_user.id and player.link_status == LinkStatus.pending:
             # User is linking against a pending linked player
             return True
 
@@ -263,13 +226,11 @@ def user_link_remove(path):
         # Global permission given
         return True
 
-    user = get_current_user()
-
-    if user and path[1] == user.id:
+    if path[1] == current_user.id:
         # User matches requested user
         player = Player.query.get(path[3])
 
-        if player.link_user == user.id and player.link_status in (LinkStatus.pending, LinkStatus.linked):
+        if player.link_user == current_user.id and player.link_status in (LinkStatus.pending, LinkStatus.linked):
             # User is unlinking a pending or linked player
             return True
 
@@ -278,9 +239,8 @@ def user_link_remove(path):
 
 def player_view(path):
     perm, default = get_permission(path, names=(None, "player", None))
-    user = get_current_user()
 
-    if user and path[1] in user_linked_players(user):
+    if path[1] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
@@ -308,9 +268,8 @@ def player_view(path):
 
 def player_region(path):
     perm, default = get_permission(path, names=(None, "player", None))
-    user = get_current_user()
 
-    if user and path[1] in user_linked_players(user):
+    if path[1] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
@@ -338,9 +297,8 @@ def player_region(path):
 
 def player_leaderboard(path):
     perm, default = get_permission(path, names=(None, "player", None))
-    user = get_current_user()
 
-    if user and path[1] in user_linked_players(user):
+    if path[1] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
@@ -368,9 +326,8 @@ def player_leaderboard(path):
 
 def player_rankings(path):
     perm, default = get_permission(path, names=(None, "player", None))
-    user = get_current_user()
 
-    if user and path[1] in user_linked_players(user):
+    if path[1] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
@@ -398,9 +355,8 @@ def player_rankings(path):
 
 def player_stats_ranked(path):
     perm, default = get_permission(path, names=(None, "player", None, None))
-    user = get_current_user()
 
-    if user and path[1] in user_linked_players(user):
+    if path[1] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
@@ -428,9 +384,8 @@ def player_stats_ranked(path):
 
 def player_stats_overall(path):
     perm, default = get_permission(path, names=(None, "player", None, None))
-    user = get_current_user()
 
-    if user and path[1] in user_linked_players(user):
+    if path[1] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
@@ -458,9 +413,8 @@ def player_stats_overall(path):
 
 def player_stats_mech(path):
     perm, default = get_permission(path, names=(None, "player", None, None))
-    user = get_current_user()
 
-    if user and path[1] in user_linked_players(user):
+    if path[1] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
@@ -488,9 +442,8 @@ def player_stats_mech(path):
 
 def player_match_list(path):
     perm, default = get_permission(path, names=(None, "player", None, None))
-    user = get_current_user()
 
-    if user and path[1] in user_linked_players(user):
+    if path[1] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
@@ -518,10 +471,9 @@ def player_match_list(path):
 
 def player_match_view(path):
     perm, default = get_permission(path, names=(None, "player", None, "match", None))
-    user = get_current_user()
-    linked_players = user_linked_players(user)
+    linked_players = current_user.linked_players
 
-    if user and path[1] in linked_players:
+    if path[1] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
@@ -556,9 +508,8 @@ def player_match_view(path):
 
 def player_group(path):
     perm, default = get_permission(path, names=(None, "player", None))
-    user = get_current_user()
 
-    if user and path[1] in user_linked_players(user):
+    if path[1] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
@@ -586,9 +537,8 @@ def player_group(path):
 
 def player_link_user(path):
     perm = get_permission(path, names=(None, "player", None, None))[0]
-    user = get_current_user()
 
-    if user and path[1] in user_linked_players(user):
+    if path[1] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
@@ -617,9 +567,8 @@ def player_link_user(path):
 
 def player_link_players(path):
     perm, default = get_permission(path, names=(None, "player", None, None))
-    user = get_current_user()
 
-    if user and path[1] in user_linked_players(user):
+    if path[1] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
@@ -651,9 +600,7 @@ def player_settings(path):
         # Global permission given
         return True
 
-    user = get_current_user()
-
-    if user and path[1] in user_linked_players(user):
+    if path[1] in current_user.linked_players:
         # User is editing a linked player
         return True
 
@@ -667,7 +614,7 @@ def match_view(path):
         return True
 
     match = Match.query.get(path[1])
-    linked_players = user_linked_players(get_current_user())
+    linked_players = current_user.linked_players
 
     for player in match.players:
         if player.player_id in linked_players:
@@ -684,7 +631,7 @@ def match_players(path):
         return True
 
     match = Match.query.get(path[1])
-    linked_players = user_linked_players(get_current_user())
+    linked_players = current_user.linked_players
 
     for player in match.players:
         if player.player_id in linked_players:
@@ -701,7 +648,7 @@ def match_stats(path):
         return True
 
     match = Match.query.get(path[1])
-    linked_players = user_linked_players(get_current_user())
+    linked_players = current_user.linked_players
 
     threshold = current_app.config["MATCH_STATS_THRESHOLD"]
     count = 0
@@ -764,7 +711,9 @@ handler_map = {
             },
             "match": {
                 "list": player_match_list,
-                "view": player_match_view
+                "match": param_wrapper({
+                    "view": player_match_view
+                })
             },
             "group": player_group,
             "link": {

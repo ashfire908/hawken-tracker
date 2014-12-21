@@ -28,6 +28,9 @@ Flask-SQLAlchemy==2.0
 # Flask-Mail
 Flask-Mail==0.9.1
 
+# Flask-Login
+Flask-Login==0.2.9
+
 # PyJade
 pyjade==3.0.0
 six==1.8.0

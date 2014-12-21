@@ -2,7 +2,6 @@
 # Hawken Tracker - Leaderboard views
 
 from flask import Blueprint, render_template
-from hawkentracker.helpers import load_globals
 from hawkentracker.mappings import ranking_fields, ranking_names
 
 leaderboard = Blueprint("leaderboard", __name__)
@@ -16,5 +15,4 @@ def index():
         "default_sort": "mmr"
     }
 
-    load_globals()
     return render_template("leaderboard/index.jade", **context)

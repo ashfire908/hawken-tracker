@@ -26,8 +26,16 @@ def create_app(config_filename=None, config_parameters=None):
     from hawkentracker.mailer import mail
     mail.init_app(app)
 
-    # Use app context while setting up views
+    # Setup login
+    from hawkentracker.account import login_manager
+    login_manager.init_app(app)
+
+    # Use app context while setting up session and views
     with app.app_context():
+        # Setup session
+        from hawkentracker.session import RedisSessionInterface
+        app.session_interface = RedisSessionInterface()
+
         # Setup views
         from hawkentracker.views.account import account
         from hawkentracker.views.auth import auth

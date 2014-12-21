@@ -6,7 +6,7 @@ from hawkenapi.util import verify_match
 from hawkentracker.interface import get_api
 from hawkentracker.mappings import region_names, gametype_names, map_names
 from hawkentracker.permissions import permissions_view
-from hawkentracker.helpers import to_last, access_denied, load_globals
+from hawkentracker.helpers import to_last, access_denied
 from hawkentracker.model import Match
 
 match = Blueprint("match", __name__, url_prefix="/match")
@@ -79,5 +79,4 @@ def view(id):
 
             context["players"].append(player)
 
-    load_globals()
     return render_template("match/view.jade", **context)

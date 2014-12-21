@@ -8,7 +8,7 @@ from flask import Blueprint, flash, render_template, current_app
 from hawkentracker.interface import get_api, get_player_id
 from hawkentracker.mappings import region_names, ranking_fields, ranking_names_full, LinkStatus
 from hawkentracker.permissions import permissions_view
-from hawkentracker.helpers import to_last, access_denied, load_globals, format_stat
+from hawkentracker.helpers import to_last, access_denied, format_stat
 from hawkentracker.model import Player
 from hawkentracker.tracker import get_global_rank
 
@@ -116,7 +116,6 @@ def view(target):
             players = Player.query.filter(Player.link_user == player.user.id).filter(Player.link_status == LinkStatus.linked).filter(Player.id != guid)
             context["linked"]["players"] = [api.get_user_callsign(player.id) or player.id for player in players]
 
-    load_globals()
     return render_template("player/view.jade", **context)
 
 

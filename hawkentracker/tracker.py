@@ -380,7 +380,6 @@ def get_global_rank(player, field):
     return {}, total
 
 
-
 def get_ranked_players(field, count, preload=None):
     # Make sure we aren't doing a pointless request
     if count < 1:
@@ -399,7 +398,7 @@ def get_ranked_players(field, count, preload=None):
         default = target.default.arg
 
     # Build the query
-    query = Player.query.join(Player.stats).filter(target != default)
+    query = Player.query.join(Player.stats).filter(target != default).filter(Player.blacklisted.is_(False))
     if preload:
         query = query.options(contains_eager(Player.stats))
     query = query.order_by(target.desc())

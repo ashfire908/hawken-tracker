@@ -82,6 +82,7 @@ map_names = CaseInsensitiveDict({
     "VS-Facility": "Facility",
     "VS-FightClub": "Fight Club",
     "VS-LastEco": "Last Eco",
+    "VS-LastEco-Winter": "Last Eco (Winter)",
     "VS-Sahara": "Bazaar",
     "VS-Titan": "Origin",
     "VS-Valkirie": "Front Line",

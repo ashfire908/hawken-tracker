@@ -2,6 +2,14 @@
 # Hawken Tracker - Utilities
 
 import collections
+import re
+import random
+
+email_re = re.compile(r"^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$", re.I)
+
+
+def random_hex(length):
+    return ("%0" + str(length) + "x") % random.randrange(16 ** length)
 
 
 def chunks(data, size):
@@ -64,41 +72,6 @@ class CaseInsensitiveDict(collections.MutableMapping):
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, dict(self.items()))
-
-
-def format_dhms(seconds, skip=0):
-    minutes, seconds = divmod(int(seconds), 60)
-    hours, minutes = divmod(minutes, 60)
-    days, hours = divmod(hours, 24)
-    if skip > 0:
-        seconds = 0
-        if skip > 1:
-            minutes = 0
-            if skip > 2:
-                hours = 0
-                # I'm not skipping days.
-    output = []
-    if days != 0:
-        if days > 1:
-            output.append("{} days".format(days))
-        else:
-            output.append("{} day".format(days))
-    if hours != 0:
-        if hours > 1:
-            output.append("{} hours".format(hours))
-        else:
-            output.append("{} hour".format(hours))
-    if minutes != 0:
-        if minutes > 1:
-            output.append("{} minutes".format(minutes))
-        else:
-            output.append("{} minute".format(minutes))
-    if seconds != 0:
-        if seconds > 1:
-            output.append("{} seconds".format(seconds))
-        else:
-            output.append("{} second".format(seconds))
-    return " ".join(output)
 
 
 def value_or_default(value, default):

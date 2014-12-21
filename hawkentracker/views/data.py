@@ -2,6 +2,7 @@
 # Hawken Tracker - Data views
 
 from flask import Blueprint, request, jsonify, abort
+from sqlalchemy.orm import contains_eager
 from hawkentracker.interface import get_api, get_player_id
 from hawkentracker.tracker import get_ranked_players, get_global_rank
 from hawkentracker.mappings import ranking_fields, region_names, gametype_names, map_names
@@ -65,8 +66,6 @@ def global_leaderboard():
 
 @data.route("/player/<player>/matches", methods=["POST"])
 def player_matches(player):
-    api = get_api()
-
     # Get the target player
     guid, _ = get_player_id(player, False)
     if guid is None:
@@ -120,12 +119,10 @@ def player_matches(player):
 
     matches = MatchPlayer.query.join(MatchPlayer.match).filter(MatchPlayer.player_id == guid).options(contains_eager(MatchPlayer.match)).order_by(sort).all()
 
-    show_all = permissions_view.player.player(player.id).match.view
-
     for match in matches:
         data["recordsTotal"] += 1
 
-        if not show_all and not permissions_view.match.match(match.match_id).view:
+        if not permissions_view.player.player(player.id).match.match(match.match_id).view:
             continue
 
         # Add match info

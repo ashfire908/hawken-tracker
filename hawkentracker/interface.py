@@ -18,6 +18,10 @@ class InterfaceException(Exception):
     pass
 
 
+def create_redis_session():
+    return StrictRedis.from_url(url=current_app.config["REDIS_URL"])
+
+
 def format_redis_key(*args):
     return current_app.config["REDIS_PREFIX"] + ":" + ":".join(args)
 
@@ -25,7 +29,7 @@ def format_redis_key(*args):
 def get_redis():
     session = g.get("redis_session", None)
     if session is None:
-        session = StrictRedis.from_url(url=current_app.config["REDIS_URL"])
+        session = create_redis_session()
         g.redis_session = session
 
     return session
