@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # Hawken Tracker - Permissions
 
+from functools import wraps
+from itertools import count
+
 import types
 import logging
 from flask import current_app, g
@@ -12,37 +15,63 @@ from hawkentracker.model import User, Player, Match
 logger = logging.getLogger(__name__)
 
 
-# Permission view
-def param_wrapper(map):
-    if not isinstance(map, (dict, types.FunctionType, types.MethodType)):
-        raise ValueError("Expected dict map, function, or method")
+def get_permissions():
+    user_permissions = g.get("user_permissions", None)
+    if user_permissions is None:
+        # Build permissions list
+        user_role = current_user.role
 
-    def lookup_wrapper(path):
+        if user_role.superadmin:
+            # Grant blanket access
+            user_permissions = True
+        else:
+            user_permissions = {}
+            for user_perm in user_role.permissions:
+                # Collect assigned permissions
+                user_permissions[user_perm.permission] = user_perm.power if user_perm.power is not None else True
+
+        g.user_permissions = user_permissions
+
+    return g.user_permissions
+
+
+class ParamWrapper:
+    def __init__(self, map=None):
+        if map is None:
+            map = {}
+
+        self.map = map
+
+    def __call__(self, path):
         def lookup_argument(argument):
             path.append(argument)
-            if isinstance(map, dict):
-                return PermissionView(map, path=path)
+            if isinstance(self.map, dict):
+                return PermissionView(self.map, path=path)
             else:
-                return map(path)
+                return self.map(path)
 
         return lookup_argument
 
-    lookup_wrapper._lookup_wrapper = True
-    return lookup_wrapper
+    def __getitem__(self, key):
+        return self.map[key]
+
+    def __setitem__(self, key, value):
+        self.map[key] = value
 
 
 class PermissionView:
-    def __init__(self, map, path=None):
-        if not isinstance(map, dict):
-            raise TypeError("Expected dict")
+    def __init__(self, map=None, path=None):
+        if map is None:
+            map = {}
         if path is None:
             path = []
+
         self.map = map
         self.path = path
 
     def __getitem__(self, key):
         target = self.map[key]
-        if hasattr(target, "_lookup_wrapper"):
+        if isinstance(target, ParamWrapper):
             return target(self.path)
         else:
             path = copyappend(self.path, key)
@@ -52,166 +81,210 @@ class PermissionView:
             return PermissionView(target, path=path)
 
     def __bool__(self):
-        if "_" in self.map and callable(self.map["_"]):
-            # noinspection PyCallingNonCallable
-            return self.map["_"](self.path)
+        if callable(self.map):
+            return self.map(self.path)
 
         raise ValueError("This permission view cannot be used directly")
+
+    def register_handler(self, handler, path, args, map=None):
+        if map is None:
+            map = self.map
+
+        key = path.pop(0)
+        arg = args.pop(0)
+
+        if len(path) == 0:
+            map[key] = handler
+        else:
+            if key in map:
+                if arg:
+                    target = map[key].map
+                else:
+                    target = map[key]
+            else:
+                if arg:
+                    target = ParamWrapper()
+                else:
+                    target = {}
+
+                map[key] = target
+
+            # Recurse
+            self.register_handler(handler, path, args, target)
 
     __getattr__ = __getitem__
 
 
-def get_permission(permission, names=None):
-    user_permissions = g.get("user_permissions", None)
-    if user_permissions is None:
-        # Build permissions list
-        user_role = current_user.role
-
-        if user_role.superadmin:
-            user_permissions = True
-        else:
-            user_permissions = {}
-            for user_perm in user_role.permissions:
-                user_permissions[user_perm.permission] = user_perm.power if user_perm.power is not None else True
-
-        g.user_permissions = user_permissions
-
-    # Check for superadmin
-    if user_permissions is True:
-        return True, None
-
-    if isinstance(permission, (list, tuple)):
-        # Rebuild the permission string
-        if names is None:
-            permission = ".".join(permission)
-        else:
-            first = True
-            path = ""
-            for x, name in zip(permission, names):
-                if first:
-                    first = False
-                else:
-                    path += "."
-
-                path += name or x
-
-            permission = path
-
-    return user_permissions.get(permission, 0), default_privacy.get(permission, None)
+permissions_view = PermissionView()
 
 
-def satifies_perm(permission, power, default):
-    if permission is True:
+class PermissionHandler:
+    def __init__(self, path, args=None):
+        if args is None:
+            args = [False] * len(path)
+
+        self.path = path
+        self.args = args
+
+    def __call__(self, f):
+        @wraps(f)
+        def wrapped(path):
+            permissions = get_permissions()
+
+            args = []
+            # Rebuild args and path for names
+            for i, element, arg in zip(count(), path, self.args):
+                if arg:
+                    # Extract and replace path name
+                    args.append(path[i])
+                    path[i] = self.path[i]
+
+            # Check for superuser
+            if permissions is True:
+                power = True
+            else:
+                # Check for global power
+                path = ".".join(path)
+                power = get_permissions().get(path, 0)
+
+                if power is not True:
+                    # Define real power check
+                    def check_power(privacy):
+                        if privacy is None:
+                            privacy = default_privacy.get(path, None)
+                            if privacy is None:
+                                raise ValueError("Default power not set but being compared to! Path: {0}".format(".".join(self.path)))
+
+                        return privacy <= power
+
+                    # Wrap function with real power check
+                    return f(False, args, check_power)
+
+            # Wrap function with always-true power check
+            return f(True, args, self.dummy_power_check)
+
+        # Register handler
+        permissions_view.register_handler(wrapped, list(self.path), list(self.args))
+
+        return wrapped
+
+    @staticmethod
+    def dummy_power_check(privacy):
+        current_app.log.warning("Dummy power check triggered!")
         return True
-
-    if power is None:
-        if default is None:
-            raise ValueError("Default privacy power not set but being compared")
-        privacy = default
-    else:
-        privacy = power
-
-    return privacy <= permission
 
 
 # Permission handlers
-def basic_flag(path):
-    return get_permission(path)[0]
+@PermissionHandler(("user", "list"))
+def user_list(perm, args, check):
+    return perm
 
 
-def user_view(path):
-    perm, default = get_permission(path, names=(None, "user", None))
-    if perm is True:
+@PermissionHandler(("user", "create", "self"))
+def user_create_self(perm, args, check):
+    return perm
+
+
+@PermissionHandler(("user", "create", "other"))
+def user_create_other(perm, args, check):
+    return perm
+
+
+@PermissionHandler(("user", "user", "view"), (False, True, False))
+def user_view(perm, args, check):
+    if perm:
         # Global permission given
         return True
 
-    if path[1] == current_user.id:
+    if args[0] == current_user.id:
         # User is viewing themselves
         return True
 
-    if satifies_perm(perm, User.query.get(path[1]).view_privacy, default):
+    if check(User.query.get(args[0]).view_privacy):
         # User meets the privacy requirement
         return True
 
     return False
 
 
-def user_delete(path):
-    perm, default = get_permission(path, names=(None, "user", None))
-    if perm is True:
+@PermissionHandler(("user", "user", "delete"), (False, True, False))
+def user_delete(perm, args, check):
+    if perm:
         # Global permission given
         return True
 
-    if path[1] == current_user.id:
+    if args[0] == current_user.id:
         # User is deleting themselves
         return True
 
+    return False
 
-def user_settings(path):
-    perm, default = get_permission(path, names=(None, "user", None))
-    if perm is True:
+
+@PermissionHandler(("user", "user", "settings"), (False, True, False))
+def user_settings(perm, args, check):
+    if perm:
         # Global permission given
         return True
 
-    if path[1] == current_user.id:
+    if args[0] == current_user.id:
         # User is editing their own settings
         return True
 
     return False
 
 
-def user_role(path):
-    perm, default = get_permission(path, names=(None, "user", None))
+@PermissionHandler(("user", "user", "role"), (False, True, False))
+def user_role(perm, args, check):
     if perm is not True:
         # Global permission not given
         return False
 
-    if path[1] == current_user.id:
+    if args[0] == current_user.id:
         # User is editing their own role
         return False
 
     return True
 
 
-def user_password(path):
-    perm, default = get_permission(path, names=(None, "user", None))
-    if perm is True:
+@PermissionHandler(("user", "user", "password"), (False, True, False))
+def user_password(perm, args, check):
+    if perm:
         # Global permission given
         return True
 
-    if path[1] == current_user.id:
+    if args[0] == current_user.id:
         # User is changing their own password
         return True
 
     return False
 
 
-def user_link_list(path):
-    perm, default = get_permission(path, names=(None, "user", None, None))
-    if perm is True:
+@PermissionHandler(("user", "user", "link", "list"), (False, True, False, False))
+def user_link_list(perm, args, check):
+    if perm:
         # Global permission given
         return True
 
-    if path[1] == current_user.id:
+    if args[0] == current_user.id:
         # User is listing their own linked players
         return True
 
-    if satifies_perm(perm, User.query.get(path[1]).link_privacy, default):
+    if check(User.query.get(args[0]).link_privacy):
         # User meets the privacy requirement
         return True
 
     return False
 
 
-def user_link_add(path):
-    perm, default = get_permission(path, names=(None, "user", None, "player", None))
-    if perm is True:
+@PermissionHandler(("user", "user", "link", "player", "add"), (False, True, False, True, False))
+def user_link_add(perm, args, check):
+    if perm:
         # Global permission given
         return True
 
-    if path[1] == current_user.id:
+    if args[0] == current_user.id:
         # User matches requested user
-        player = Player.query.get(path[3])
+        player = Player.query.get(args[1])
 
         if player.link_user == current_user.id and player.link_status == LinkStatus.pending:
             # User is linking against a pending linked player
@@ -220,15 +293,15 @@ def user_link_add(path):
     return False
 
 
-def user_link_remove(path):
-    perm, default = get_permission(path, names=(None, "user", None, "player", None))
-    if perm is True:
+@PermissionHandler(("user", "user", "link", "player", "remove"), (False, True, False, True, False))
+def user_link_remove(perm, args, check):
+    if perm:
         # Global permission given
         return True
 
-    if path[1] == current_user.id:
+    if args[0] == current_user.id:
         # User matches requested user
-        player = Player.query.get(path[3])
+        player = Player.query.get(args[1])
 
         if player.link_user == current_user.id and player.link_status in (LinkStatus.pending, LinkStatus.linked):
             # User is unlinking a pending or linked player
@@ -237,21 +310,45 @@ def user_link_remove(path):
     return False
 
 
-def player_view(path):
-    perm, default = get_permission(path, names=(None, "player", None))
+@PermissionHandler(("player", "list"))
+def player_list(perm, args, check):
+    return perm
 
-    if path[1] in current_user.linked_players:
+
+@PermissionHandler(("player", "search"))
+def player_search(perm, args, check):
+    return perm
+
+
+@PermissionHandler(("player", "blacklist", "access"))
+def player_blacklist_access(perm, args, check):
+    return perm
+
+
+@PermissionHandler(("player", "blacklist", "view"))
+def player_blacklist_view(perm, args, check):
+    return perm
+
+
+@PermissionHandler(("player", "blacklist", "change"))
+def player_blacklist_change(perm, args, check):
+    return perm
+
+
+@PermissionHandler(("player", "player", "view"), (False, True, False))
+def player_view(perm, args, check):
+    if args[0] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
-    player = Player.query.get(path[1])
+    player = Player.query.get(args[0])
 
     if player.blacklisted:
         # Player is blacklisted
-        if not basic_flag(("player", "blacklist", "access")):
+        if not permissions_view.player.blacklist.access:
             return False
 
-    if perm is True:
+    if perm:
         # Global permission given
         return True
 
@@ -259,28 +356,27 @@ def player_view(path):
         # Player has opted out
         return False
 
-    if satifies_perm(perm, player.view_privacy, default):
+    if check(player.view_privacy):
         # User meets the privacy requirement
         return True
 
     return False
 
 
-def player_region(path):
-    perm, default = get_permission(path, names=(None, "player", None))
-
-    if path[1] in current_user.linked_players:
+@PermissionHandler(("player", "player", "region"), (False, True, False))
+def player_region(perm, args, check):
+    if args[0] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
-    player = Player.query.get(path[1])
+    player = Player.query.get(args[0])
 
     if player.blacklisted:
         # Player is blacklisted
-        if not basic_flag(("player", "blacklist", "access")):
+        if not permissions_view.player.blacklist.access:
             return False
 
-    if perm is True:
+    if perm:
         # Global permission given
         return True
 
@@ -288,28 +384,27 @@ def player_region(path):
         # Player has opted out
         return False
 
-    if satifies_perm(perm, player.region_privacy, default):
+    if check(player.region_privacy):
         # User meets the privacy requirement
         return True
 
     return False
 
 
-def player_leaderboard(path):
-    perm, default = get_permission(path, names=(None, "player", None))
-
-    if path[1] in current_user.linked_players:
+@PermissionHandler(("player", "player", "leaderboard"), (False, True, False))
+def player_leaderboard(perm, args, check):
+    if args[0] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
-    player = Player.query.get(path[1])
+    player = Player.query.get(args[0])
 
     if player.blacklisted:
         # Player is blacklisted
-        if not basic_flag(("player", "blacklist", "access")):
+        if not permissions_view.player.blacklist.access:
             return False
 
-    if perm is True:
+    if perm:
         # Global permission given
         return True
 
@@ -317,28 +412,27 @@ def player_leaderboard(path):
         # Player has opted out
         return False
 
-    if satifies_perm(perm, player.leaderboard_privacy, default):
+    if check(player.leaderboard_privacy):
         # User meets the privacy requirement
         return True
 
     return False
 
 
-def player_rankings(path):
-    perm, default = get_permission(path, names=(None, "player", None))
-
-    if path[1] in current_user.linked_players:
+@PermissionHandler(("player", "player", "rankings"), (False, True, False))
+def player_rankings(perm, args, check):
+    if args[0] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
-    player = Player.query.get(path[1])
+    player = Player.query.get(args[0])
 
     if player.blacklisted:
         # Player is blacklisted
-        if not basic_flag(("player", "blacklist", "access")):
+        if not permissions_view.player.blacklist.access:
             return False
 
-    if perm is True:
+    if perm:
         # Global permission given
         return True
 
@@ -346,28 +440,27 @@ def player_rankings(path):
         # Player has opted out
         return False
 
-    if satifies_perm(perm, player.leaderboard_privacy, default):
+    if check(player.leaderboard_privacy):
         # User meets the privacy requirement
         return True
 
     return False
 
 
-def player_stats_ranked(path):
-    perm, default = get_permission(path, names=(None, "player", None, None))
-
-    if path[1] in current_user.linked_players:
+@PermissionHandler(("player", "player", "stats", "ranked"), (False, True, False, False))
+def player_stats_ranked(perm, args, check):
+    if args[0] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
-    player = Player.query.get(path[1])
+    player = Player.query.get(args[0])
 
     if player.blacklisted:
         # Player is blacklisted
-        if not basic_flag(("player", "blacklist", "access")):
+        if not permissions_view.player.blacklist.access:
             return False
 
-    if perm is True:
+    if perm:
         # Global permission given
         return True
 
@@ -375,28 +468,27 @@ def player_stats_ranked(path):
         # Player has opted out
         return False
 
-    if satifies_perm(perm, player.ranked_stats_privacy, default):
+    if check(player.ranked_stats_privacy):
         # User meets the privacy requirement
         return True
 
     return False
 
 
-def player_stats_overall(path):
-    perm, default = get_permission(path, names=(None, "player", None, None))
-
-    if path[1] in current_user.linked_players:
+@PermissionHandler(("player", "player", "stats", "overall"), (False, True, False, False))
+def player_stats_overall(perm, args, check):
+    if args[0] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
-    player = Player.query.get(path[1])
+    player = Player.query.get(args[0])
 
     if player.blacklisted:
         # Player is blacklisted
-        if not basic_flag(("player", "blacklist", "access")):
+        if not permissions_view.player.blacklist.access:
             return False
 
-    if perm is True:
+    if perm:
         # Global permission given
         return True
 
@@ -404,28 +496,27 @@ def player_stats_overall(path):
         # Player has opted out
         return False
 
-    if satifies_perm(perm, player.overall_stats_privacy, default):
+    if check(player.overall_stats_privacy):
         # User meets the privacy requirement
         return True
 
     return False
 
 
-def player_stats_mech(path):
-    perm, default = get_permission(path, names=(None, "player", None, None))
-
-    if path[1] in current_user.linked_players:
+@PermissionHandler(("player", "player", "stats", "mech"), (False, True, False, False))
+def player_stats_mech(perm, args, check):
+    if args[0] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
-    player = Player.query.get(path[1])
+    player = Player.query.get(args[0])
 
     if player.blacklisted:
         # Player is blacklisted
-        if not basic_flag(("player", "blacklist", "access")):
+        if not permissions_view.player.blacklist.access:
             return False
 
-    if perm is True:
+    if perm:
         # Global permission given
         return True
 
@@ -433,28 +524,27 @@ def player_stats_mech(path):
         # Player has opted out
         return False
 
-    if satifies_perm(perm, player.mech_stats_privacy, default):
+    if check(player.mech_stats_privacy):
         # User meets the privacy requirement
         return True
 
     return False
 
 
-def player_match_list(path):
-    perm, default = get_permission(path, names=(None, "player", None, None))
-
-    if path[1] in current_user.linked_players:
+@PermissionHandler(("player", "player", "match", "list"), (False, True, False, False))
+def player_match_list(perm, args, check):
+    if args[0] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
-    player = Player.query.get(path[1])
+    player = Player.query.get(args[0])
 
     if player.blacklisted:
         # Player is blacklisted
-        if not basic_flag(("player", "blacklist", "access")):
+        if not permissions_view.player.blacklist.access:
             return False
 
-    if perm is True:
+    if perm:
         # Global permission given
         return True
 
@@ -462,29 +552,29 @@ def player_match_list(path):
         # Player has opted out
         return False
 
-    if satifies_perm(perm, player.match_list_privacy, default):
+    if check(player.match_list_privacy):
         # User meets the privacy requirement
         return True
 
     return False
 
 
-def player_match_view(path):
-    perm, default = get_permission(path, names=(None, "player", None, "match", None))
+@PermissionHandler(("player", "player", "match", "match", "view"), (False, True, False, True, False))
+def player_match_view(perm, args, check):
     linked_players = current_user.linked_players
 
-    if path[1] in current_user.linked_players:
+    if args[0] in linked_players:
         # User is viewing a linked player
         return True
 
-    player = Player.query.get(path[1])
+    player = Player.query.get(args[0])
 
     if player.blacklisted:
         # Player is blacklisted
-        if not basic_flag(("player", "blacklist", "access")):
+        if not permissions_view.player.blacklist.access:
             return False
 
-    if perm is True:
+    if perm:
         # Global permission given
         return True
 
@@ -492,11 +582,11 @@ def player_match_view(path):
         # Player has opted out
         return False
 
-    if satifies_perm(perm, player.match_view_privacy, default):
+    if check(player.match_view_privacy):
         # User meets the privacy requirement
         return True
 
-    match = Match.query.get(path[3])
+    match = Match.query.get(args[1])
 
     for player in match.players:
         if player.player_id in linked_players:
@@ -506,21 +596,20 @@ def player_match_view(path):
     return False
 
 
-def player_group(path):
-    perm, default = get_permission(path, names=(None, "player", None))
-
-    if path[1] in current_user.linked_players:
+@PermissionHandler(("player", "player", "group"), (False, True, False))
+def player_group(perm, args, check):
+    if args[0] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
-    player = Player.query.get(path[1])
+    player = Player.query.get(args[0])
 
     if player.blacklisted:
         # Player is blacklisted
-        if not basic_flag(("player", "blacklist", "access")):
+        if not permissions_view.player.blacklist.access:
             return False
 
-    if perm is True:
+    if perm:
         # Global permission given
         return True
 
@@ -528,28 +617,27 @@ def player_group(path):
         # Player has opted out
         return False
 
-    if satifies_perm(perm, player.group_privacy, default):
+    if check(player.group_privacy):
         # User meets the privacy requirement
         return True
 
     return False
 
 
-def player_link_user(path):
-    perm = get_permission(path, names=(None, "player", None, None))[0]
-
-    if path[1] in current_user.linked_players:
+@PermissionHandler(("player", "player", "link", "user"), (False, True, False, False))
+def player_link_user(perm, args, check):
+    if args[0] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
-    player = Player.query.get(path[1])
+    player = Player.query.get(args[0])
 
     if player.blacklisted:
         # Player is blacklisted
-        if not basic_flag(("player", "blacklist", "access")):
+        if not permissions_view.player.blacklist.access:
             return False
 
-    if perm is True:
+    if perm:
         # Global permission given
         return True
 
@@ -558,28 +646,27 @@ def player_link_user(path):
         return False
 
     if player.link_status == LinkStatus.linked:
-        if user_link_list(("user", player.link_user, "link", "list")):
+        if permissions_view.user.user(player.link_user).link.list:
             # User meets the privacy requirement
             return True
 
     return False
 
 
-def player_link_players(path):
-    perm, default = get_permission(path, names=(None, "player", None, None))
-
-    if path[1] in current_user.linked_players:
+@PermissionHandler(("player", "player", "link", "players"), (False, True, False, False))
+def player_link_players(perm, args, check):
+    if args[0] in current_user.linked_players:
         # User is viewing a linked player
         return True
 
-    player = Player.query.get(path[1])
+    player = Player.query.get(args[0])
 
     if player.blacklisted:
         # Player is blacklisted
-        if not basic_flag(("player", "blacklist", "access")):
+        if not permissions_view.player.blacklist.access:
             return False
 
-    if perm is True:
+    if perm:
         # Global permission given
         return True
 
@@ -587,33 +674,43 @@ def player_link_players(path):
         # Player has opted out
         return False
 
-    if satifies_perm(perm, player.link_privacy, default) <= perm:
+    if check(player.link_privacy):
         # User meets the privacy requirement
         return True
 
     return False
 
 
-def player_settings(path):
-    perm, default = get_permission(path, names=(None, "player", None))
-    if perm is True:
+@PermissionHandler(("player", "player", "settings"), (False, True, False))
+def player_settings(perm, args, check):
+    if perm:
         # Global permission given
         return True
 
-    if path[1] in current_user.linked_players:
+    if args[0] in current_user.linked_players:
         # User is editing a linked player
         return True
 
     return False
 
 
-def match_view(path):
-    perm, default = get_permission(path, names=(None, "match", None))
-    if perm is True:
+@PermissionHandler(("match", "list"))
+def match_list(perm, args, check):
+    return perm
+
+
+@PermissionHandler(("match", "search"))
+def match_search(perm, args, check):
+    return perm
+
+
+@PermissionHandler(("match", "match", "view"), (False, True, False))
+def match_view(perm, args, check):
+    if perm:
         # Global permission given
         return True
 
-    match = Match.query.get(path[1])
+    match = Match.query.get(args[0])
     linked_players = current_user.linked_players
 
     for player in match.players:
@@ -624,13 +721,13 @@ def match_view(path):
     return False
 
 
-def match_players(path):
-    perm, default = get_permission(path, names=(None, "match", None))
-    if perm is True:
+@PermissionHandler(("match", "match", "players"), (False, True, False))
+def match_players(perm, args, check):
+    if perm:
         # Global permission given
         return True
 
-    match = Match.query.get(path[1])
+    match = Match.query.get(args[0])
     linked_players = current_user.linked_players
 
     for player in match.players:
@@ -641,13 +738,13 @@ def match_players(path):
     return False
 
 
-def match_stats(path):
-    perm, default = get_permission(path, names=(None, "match", None))
-    if perm is True:
+@PermissionHandler(("match", "match", "stats"), (False, True, False))
+def match_stats(perm, args, check):
+    if perm:
         # Global permission given
         return True
 
-    match = Match.query.get(path[1])
+    match = Match.query.get(args[0])
     linked_players = current_user.linked_players
 
     threshold = current_app.config["MATCH_STATS_THRESHOLD"]
@@ -657,7 +754,7 @@ def match_stats(path):
             if player.player_id in linked_players:
                 # User has played in the match
                 count += 1
-            elif player_stats_ranked(("player", player.player_id, "stats", "ranked")):
+            elif permissions_view.player.player(player.player_id).stats.ranked:
                 # Player has public stats
                 count += 1
 
@@ -666,72 +763,3 @@ def match_stats(path):
                 return True
 
     return False
-
-
-# Permission handlers
-handler_map = {
-    "user": {
-        "list": basic_flag,
-        "create": {
-            "self": basic_flag,
-            "other": basic_flag
-        },
-        "user": param_wrapper({
-            "view": user_view,
-            "delete": user_delete,
-            "settings": user_settings,
-            "role": user_role,
-            "password": user_password,
-            "link": {
-                "list": user_link_list,
-                "player": param_wrapper({
-                    "add": user_link_add,
-                    "remove": user_link_remove
-                })
-            }
-        })
-    },
-    "player": {
-        "list": basic_flag,
-        "search": basic_flag,
-        "blacklist": {
-            "access": basic_flag,
-            "view": basic_flag,
-            "change": basic_flag
-        },
-        "player": param_wrapper({
-            "view": player_view,
-            "region": player_region,
-            "leaderboard": player_leaderboard,
-            "rankings": player_rankings,
-            "stats": {
-                "ranked": player_stats_ranked,
-                "overall": player_stats_overall,
-                "mech": player_stats_mech
-            },
-            "match": {
-                "list": player_match_list,
-                "match": param_wrapper({
-                    "view": player_match_view
-                })
-            },
-            "group": player_group,
-            "link": {
-                "user": player_link_user,
-                "players": player_link_players
-            },
-            "settings": player_settings
-        })
-    },
-    "match": {
-        "list": basic_flag,
-        "search": basic_flag,
-        "match": param_wrapper({
-            "view": match_view,
-            "players": match_players,
-            "stats": match_stats
-        })
-    }
-}
-
-permissions_view = PermissionView(handler_map)
