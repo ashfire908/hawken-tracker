@@ -18,7 +18,7 @@ var leaderboard_map = {
   "sg_win_loss": "Siege Win/Loss",
   "coop_win_loss": "Coop Win/Loss",
   "cooptdm_win_loss": "Coop TDM Win/Loss"
-}
+};
 var leaderboard_cols = Object.keys(leaderboard_map);
 var leaderboard_ignore = ["rank", "player", "region"];
 var leaderboard_always = ["mmr", "kda"];
@@ -33,9 +33,8 @@ var playermatches_map = {
   "server_map": "Map",
   "first_seen": "Joined",
   "last_seen": "Left"
-}
+};
 var playermatches_cols = Object.keys(playermatches_map);
-var playermatches_endpoint = null;
 
 // Duration formatter
 Number.prototype.toHHMMSS = function () {
@@ -49,7 +48,7 @@ Number.prototype.toHHMMSS = function () {
     if (minutes < 10) {minutes = "0" + minutes;}
     if (seconds < 10) {seconds = "0" + seconds;}
     return hours + ":" + minutes + ":" + seconds;
-}
+};
 
 // Player lookup
 function lookup_player() {
@@ -65,7 +64,7 @@ function leaderboard_url(sort, extra) {
     "sort": sort
   };
 
-  var extra = leaderboard_always.filter(function(element) { return element != sort; });
+  extra = leaderboard_always.filter(function(element) { return element != sort; });
   if (extra.length > 0) {
     params["extra"] = extra.join(",");
   }
@@ -134,7 +133,7 @@ function setup_leaderboard(table, menu, label, endpoint, sort) {
 
   // Build the column info and rank menu
   var cols = [];
-  var menu = $(menu);
+  menu = $(menu);
   for (var i = 0; i < leaderboard_cols.length; i++) {
     var name = leaderboard_cols[i];
     var ignore = $.inArray(name, leaderboard_ignore) != -1;
@@ -143,7 +142,7 @@ function setup_leaderboard(table, menu, label, endpoint, sort) {
       "name": name,
       "title": leaderboard_map[name],
       "visible": ignore || name == sort || $.inArray(name, leaderboard_always) != -1
-    }
+    };
 
     // Set the renderer and default
     switch (name) {
@@ -205,7 +204,7 @@ function setup_leaderboard(table, menu, label, endpoint, sort) {
         "text": leaderboard_map[name]
       })));
     }
-  };
+  }
 
   // Init the table
   $(table).DataTable({
@@ -225,7 +224,7 @@ function setup_leaderboard(table, menu, label, endpoint, sort) {
 
 // Select leaderboard sort
 function sort_leaderboard(table, label, sort) {
-  var table = $(table).DataTable();
+  table = $(table).DataTable();
   for (var i = 0; i < leaderboard_cols.length; i++) {
     var name = leaderboard_cols[i];
     if ($.inArray(name, leaderboard_ignore) != -1 || name == sort || $.inArray(name, leaderboard_always) != -1) {
@@ -233,7 +232,7 @@ function sort_leaderboard(table, label, sort) {
     } else {
       table.column(i).visible(false);
     }
-  };
+  }
 
   // Reload the table data
   table.ajax.url(leaderboard_url(sort));
@@ -247,21 +246,25 @@ function sort_leaderboard(table, label, sort) {
 function setup_player_matches(table, endpoint) {
   // Build the column info and rank menu
   var cols = [];
-  var menu = $(menu);
+  var default_sort = 0;
   for (var i = 0; i < playermatches_cols.length; i++) {
     var name = playermatches_cols[i];
     var info = {
       "data": name,
       "name": name,
       "title": playermatches_map[name]
-    }
+    };
 
     if (name == "id") {
       info["render"] = format_match;
     }
 
+    if (name == "last_seen") {
+      default_sort = i;
+    }
+
     cols.push(info);
-  };
+  }
 
   // Init the table
   $(table).DataTable({
@@ -269,6 +272,7 @@ function setup_player_matches(table, endpoint) {
       "url": endpoint,
       "type": "POST"
     },
+    "order": [[default_sort, "desc"]],
     "columns": cols,
     "processing": true,
     "serverSide": true
