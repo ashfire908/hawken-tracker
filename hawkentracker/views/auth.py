@@ -16,13 +16,13 @@ auth = Blueprint("auth", __name__)
 
 @auth.route("/login", methods=["GET", "POST"])
 def login():
-    if current_user.is_authenticated:
+    if current_user.is_authenticated():
         flash("You are already logged in.", "info")
-        return to_next("account")
+        return to_next("account.overview")
 
     if request.method == "POST":
         try:
-            login_user(request.form["username"], request.form["password"], request.form["remember"])
+            login_user(request.form["username"], request.form["password"], request.form["remember"] == "yes")
         except InvalidLogin:
             flash("Invalid login.", "error")
         except InactiveAccount:
@@ -44,9 +44,9 @@ def logout():
 
 @auth.route("/register", methods=["GET", "POST"])
 def register():
-    if current_user.is_authenticated:
+    if current_user.is_authenticated():
         flash("You are already logged in.", "info")
-        return to_next("account")
+        return to_next("account.overview")
     elif permissions_view.user.create.self:
         return access_denied("You do not have permission to create a user.")
 
@@ -61,16 +61,16 @@ def register():
             force_login(user)
 
             flash("Successfully registered!", "success")
-            return to_next("account")
+            return to_next("account.overview")
 
     return render_template("auth/register.jade")
 
 
 @auth.route("/forgot", methods=["GET", "POST"])
 def forgot():
-    if current_user.is_authenticated:
+    if current_user.is_authenticated():
         flash("You are already logged in.", "info")
-        return to_next("account")
+        return to_next("account.overview")
 
     if request.method == "POST":
         if request.form["username"] != "":
@@ -85,14 +85,14 @@ def forgot():
 
             # Mask invalid username as success
             flash("Password reset email sent.", "success")
-            return to_next("login")
+            return to_next("auth.login")
 
         if request.form["email"] != "":
             user = User.by_email(request.form["email"])
             if user is not None:
                 mail.send(reminder_email(user))
                 flash("A reminder email with your account details has been sent.", "success")
-                return to_next("login")
+                return to_next("auth.login")
 
             flash("No user was found with that email. If you have a email change pending, use your old email address instead.", "error")
         else:
@@ -149,7 +149,7 @@ def password_reset():
             db.session.commit()
 
             flash("Password successfully reset!", "success")
-            return to_next("login")
+            return to_next("auth.login")
 
     return render_template("auth/password_reset.jade")
 
@@ -185,6 +185,6 @@ def verify_email():
     flash("Email successfully verified!", "success")
 
     if current_user.id == user.id:
-        return to_next("account")
+        return to_next("account.overview")
 
-    return to_next("login")
+    return to_next("auth.login")

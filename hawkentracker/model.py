@@ -351,7 +351,7 @@ class User(db.Model):
         return self.email_confirmation_token
 
     def verify_email_confirmation(self, email, token):
-        if not (self.email_confirmation_for == None and not self.confirmed or self.email_confirmation_for == email) or self.email_confirmation_token != token:
+        if not (self.email_confirmation_for is None and not self.confirmed) or self.email_confirmation_token != token:
             raise TokenInvalid
 
         if self.email_confirmation_sent_at is None:
@@ -405,23 +405,26 @@ class User(db.Model):
 
     @db.validates("username")
     def validate_username(self, key, username):
-        assert len(username) >= 3
+        assert len(username) >= current_app.config.get("USERNAME_MIN_LENGTH", 1)
         assert "@" not in username
         return username
 
     @db.validates("password")
     def validate_password(self, key, password):
-        assert len(password) >= current_app.config.get("PASSWORD_MIN_LENGTH", 0)
+        assert len(password) >= current_app.config.get("PASSWORD_MIN_LENGTH", 1)
         return pwd_context.encrypt(password)
 
     @db.validates("email")
     def validate_email(self, key, email):
         assert email_re.match(email) is not None
+        assert self.email_confirmation_for != email
         return email
 
     @db.validates("email_confirmation_for")
     def validate_email_confirmation_for(self, key, email):
-        assert email_re.match(email) is not None
+        if email is not None:
+            assert email_re.match(email) is not None
+            assert self.email != email
         return email
 
     def is_authenticated(self):

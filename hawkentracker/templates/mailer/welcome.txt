@@ -1,6 +1,6 @@
 Hello {{ user.username }},
 
-Welcome to the Hawken Leaderboards. To verify your email, please follow this link: {{ url_for("account.verify_email", token=user.email_confirmation_token, _external=True) }}
+Welcome to the Hawken Leaderboards. To verify your email, please follow this link: {{ url_for("auth.verify_email", token=user.email_confirmation_token, _external=True) }}
 
 If you did not register this account, you can simply ignore this message.
 

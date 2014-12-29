@@ -65,7 +65,7 @@ def create_user(username, password, email, role=None):
         role = CoreRole.unconfirmed
 
     if isinstance(role, CoreRole):
-        role = UserRole.get(role.value)
+        role = UserRole.query.get(role.value)
 
     # Create user
     user = User()
@@ -74,7 +74,7 @@ def create_user(username, password, email, role=None):
     user.email = email
     user.role = role
 
-    user.generate_email_confirmation(user.email)
+    user.generate_email_confirmation(email)
 
     # Commit user
     db.session.add(user)

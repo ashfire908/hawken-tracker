@@ -19,7 +19,7 @@ def to_index():
     return redirect(url_for("leaderboard.index"))
 
 
-def to_next(default="index"):
+def to_next(default="leaderboard.index"):
     next = request.args.get("next", default)
     if next == request.endpoint or next == "":
         return redirect(url_for(default))
@@ -28,7 +28,7 @@ def to_next(default="index"):
 
 def to_last():
     # Finish implmenting
-    to_index()
+    return to_index()
 
 
 def format_dhms(seconds, skip=0):

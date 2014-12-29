@@ -46,7 +46,7 @@ class RedisSessionInterface(SessionInterface):
         if data is None:
             return RedisSession(sid=sid, new=True)
 
-        return RedisSession(msgpack.unpackb(data), sid=sid)
+        return RedisSession(msgpack.unpackb(data, encoding="utf-8"), sid=sid)
 
     def save_session(self, app, session, response):
         key = format_redis_key(self.prefix, session.sid)

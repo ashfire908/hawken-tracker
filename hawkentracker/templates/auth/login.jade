@@ -14,6 +14,10 @@ block content
             .col-sm-2
                 input.form-control(name="password", type="password", placeholder="Password")
         .form-group
+            label.col-sm-2.control-label(for="remember") Remember Me
+            .col-sm-2
+                input.checkbox(name="remember", type="checkbox", value="yes")
+        .form-group
             .col-sm-offset-2.col-sm-2.btn-group
                 button.btn.btn-success(type="submit") Sign in
                 a.btn.btn-default(href=url_for("auth.register", next=request.args.next)) Register

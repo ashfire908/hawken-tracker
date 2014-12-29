@@ -12,12 +12,12 @@ from hawkentracker.model import Match
 match = Blueprint("match", __name__, url_prefix="/match")
 
 
-@match.route("/match")
+@match.route("/")
 def list():
     return "match list"
 
 
-@match.route("/match/<id>")
+@match.route("/<id>")
 def view(id):
     api = get_api()
 
@@ -64,7 +64,7 @@ def view(id):
         context["players"] = []
 
         for player in match.players:
-            if permissions_view.player.player(player.player_id).match:
+            if permissions_view.player.player(player.player_id).match.match(match.id).view:
                 player = {
                     "name": api.get_user_callsign(player.player_id) or player.player_id,
                     "first_seen": player.first_seen.strftime("%Y-%m-%d %H:%M"),

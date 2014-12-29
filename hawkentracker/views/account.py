@@ -73,7 +73,7 @@ def password():
             db.session.commit()
 
             flash("Password successfully changed!", "error")
-            return to_next("account")
+            return to_next("account.overview")
 
     return render_template("account/password.jade")
 
@@ -116,7 +116,7 @@ def link_player(target):
     db.session.commit()
 
     flash("'{0}' has successfully been linked to your account".format(callsign or guid), "success")
-    return to_next("account")
+    return to_next("account.overview")
 
 
 @account.route("/unlink/<target>")
@@ -153,7 +153,7 @@ def unlink_player(target):
     db.session.commit()
 
     flash("'{0}' has been successfully unlinked from your account".format(callsign or guid), "success")
-    return to_next("account")
+    return to_next("account.overview")
 
 
 @account.route("/delete", methods=["GET", "POST"])

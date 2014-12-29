@@ -27,6 +27,7 @@ class DefaultSettings:
     SQLALCHEMY_DATABASE_URI = None
     REDIS_URL = None
     REDIS_PREFIX = "hawkentracker"
+    REDIS_SESSION_LIFETIME = 86400
     HAWKEN_API_SCHEME = "http"
     HAWKEN_API_HOST = None
     HAWKEN_API_USER = None
