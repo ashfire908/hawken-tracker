@@ -2,6 +2,7 @@
 # Hawken Tracker - Accounts
 
 from flask.ext.login import LoginManager, login_user as login, logout_user as logout
+from sqlalchemy.exc import IntegrityError
 from hawkentracker.mappings import CoreRole
 from hawkentracker.mailer import mail, welcome_email
 from hawkentracker.model import User, UserRole, AnonymousUser, db
@@ -78,7 +79,16 @@ def create_user(username, password, email, role=None):
 
     # Commit user
     db.session.add(user)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError as e:
+        db.session.rollback()
+
+        if e.orig.diag.constraint_name == "users_username_key":
+            raise UsernameAlreadyExists
+
+        if e.orig.diag.constraint_name == "users_email_key":
+            raise EmailAlreadyExists
 
     # Send welcome email
     mail.send(welcome_email(user))

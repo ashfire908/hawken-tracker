@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 # Hawken Tracker - Login views
 
-from flask import Blueprint, render_template, request, flash
+from flask import Blueprint, render_template, request, flash, current_app
 from flask.ext.login import current_user
-from hawkentracker.account import InvalidLogin, InactiveAccount, login_user, logout_user, create_user, force_login
+from hawkentracker.account import InvalidLogin, InactiveAccount, UsernameAlreadyExists, EmailAlreadyExists, login_user,\
+    logout_user, create_user, force_login
 from hawkentracker.helpers import to_next, to_index, access_denied
 from hawkentracker.mailer import mail, password_reset_email, reminder_email
 from hawkentracker.mappings import CoreRole
 from hawkentracker.model import User, TokenInvalid, TokenExpired, db
 from hawkentracker.permissions import permissions_view
+from hawkentracker.util import email_re
 
 
 auth = Blueprint("auth", __name__)
@@ -53,15 +55,31 @@ def register():
     if request.method == "POST":
         username = request.form["username"].strip()
         email = request.form["email"].strip()
+        password = request.form["password"]
+        password_confirm = request.form["password_confirm"]
 
-        if request.form["password"] != request.form["confirm"]:
+        if len(username) < current_app.config.get("MIN_USERNAME_LENGTH", 1):
+            flash("Your username must be at least {0} characters long.".format(current_app.config.get("USERNAME_MIN_LENGTH", 1)), "error")
+        elif "@" in username:
+            flash("Usernames cannot contain a @ symbol.", "error")
+        elif password != password_confirm:
             flash("The passwords must match.", "error")
+        elif len(password) < current_app.config.get("PASSWORD_MIN_LENGTH", 1):
+            flash("Your password must be at least {0} characters long.".format(current_app.config.get("PASSWORD_MIN_LENGTH", 1)), "error")
+        elif email_re.match(email) is None:
+            flash("Your email is not valid.", "error")
         else:
-            user = create_user(username, request.form["password"], email, CoreRole.unconfirmed)
-            force_login(user)
+            try:
+                user = create_user(username, request.form["password"], email, CoreRole.unconfirmed)
+            except UsernameAlreadyExists:
+                flash("Username already in use. Please choose another.", "error")
+            except EmailAlreadyExists:
+                flash("Email already in use. If you forgot your password, please use the forgot password feature.", "error")
+            else:
+                force_login(user)
 
-            flash("Successfully registered!", "success")
-            return to_next("account.overview")
+                flash("Successfully registered!", "success")
+                return to_next("account.overview")
 
     return render_template("auth/register.jade")
 
