@@ -14,7 +14,7 @@ def message(msg):
 
 def main(task, verbosity, force, debug):
     # Import what we need from within the app context
-    from hawkentracker.model import db, PollLog, UpdateLog, dump_queries
+    from hawkentracker.models.database import db, PollLog, UpdateLog, dump_queries
     from hawkentracker.tracker import poll_servers, update_all
 
     try:

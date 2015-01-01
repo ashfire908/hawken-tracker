@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Hawken Tracker - DB Models
+# Hawken Tracker - Database Models
 
 from datetime import datetime
 
@@ -311,10 +311,14 @@ class MatchPlayer(db.Model):
 
 class User(db.Model):
     __tablename__ = "users"
-    __table_args__ = (db.UniqueConstraint("email", "email_confirmation_for"), )
+    __table_args__ = (
+        db.Index("ix_users_username", db.text("lower(username)"), unique=True),
+        db.Index("ix_users_email", db.text("lower(email)"), unique=True),
+        db.Index("ix_users_email_confirmation_for", db.text("lower(email_confirmation_for)"), unique=True)
+    )
 
     id = db.Column(db.Integer, autoincrement=True, primary_key=True)
-    username = db.Column(db.String, unique=True, nullable=False)
+    username = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False)
     password = db.Column(db.String, nullable=False)
     creation = db.Column(db.DateTime, default=datetime.now, nullable=False)

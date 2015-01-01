@@ -7,7 +7,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload, contains_eager
 from flask import current_app
 from hawkentracker.interface import get_api, api_wrapper, get_redis, format_redis_key
-from hawkentracker.model import db, windowed_query, Player, PlayerStats, Match, MatchPlayer, PollLog, UpdateLog
+from hawkentracker.models.database import db, windowed_query, Player, PlayerStats, Match, MatchPlayer, PollLog, UpdateLog
 from hawkentracker.mappings import ranking_fields
 
 logger = logging.getLogger(__name__)

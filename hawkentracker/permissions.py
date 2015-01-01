@@ -10,7 +10,7 @@ from flask import current_app, g
 from flask.ext.login import current_user
 from hawkenapi.util import copyappend
 from hawkentracker.mappings import LinkStatus, default_privacy
-from hawkentracker.model import User, Player, Match
+from hawkentracker.models.database import User, Player, Match
 
 logger = logging.getLogger(__name__)
 

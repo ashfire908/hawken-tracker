@@ -9,7 +9,7 @@ from hawkentracker.interface import get_api, get_player_id
 from hawkentracker.mappings import region_names, ranking_fields, ranking_names_full, LinkStatus
 from hawkentracker.permissions import permissions_view
 from hawkentracker.helpers import to_last, access_denied, format_stat
-from hawkentracker.model import Player
+from hawkentracker.models.database import Player
 from hawkentracker.tracker import get_global_rank
 
 player = Blueprint("player", __name__, url_prefix="/player")

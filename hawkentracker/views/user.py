@@ -5,7 +5,7 @@ from flask import Blueprint, render_template
 from hawkentracker.helpers import access_denied
 from hawkentracker.interface import get_api
 from hawkentracker.mappings import LinkStatus
-from hawkentracker.model import User
+from hawkentracker.models.database import User
 from hawkentracker.permissions import permissions_view
 
 user = Blueprint("user", __name__, url_prefix="/user")

@@ -5,7 +5,7 @@ from datetime import datetime
 
 from flask import current_app
 from hawkentracker.helpers import format_dhms
-from hawkentracker.model import UpdateLog
+from hawkentracker.models.database import UpdateLog
 
 
 @current_app.context_processor

@@ -8,7 +8,7 @@ from hawkentracker.account import InvalidLogin, InactiveAccount, UsernameAlready
 from hawkentracker.helpers import to_next, to_index, access_denied
 from hawkentracker.mailer import mail, password_reset_email, reminder_email
 from hawkentracker.mappings import CoreRole
-from hawkentracker.model import User, TokenInvalid, TokenExpired, db
+from hawkentracker.models.database import User, TokenInvalid, TokenExpired, db
 from hawkentracker.permissions import permissions_view
 from hawkentracker.util import email_re
 

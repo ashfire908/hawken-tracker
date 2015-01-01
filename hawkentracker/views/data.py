@@ -8,7 +8,7 @@ from hawkentracker.tracker import get_ranked_players, get_global_rank
 from hawkentracker.mappings import ranking_fields, region_names, gametype_names, map_names
 from hawkentracker.permissions import permissions_view
 from hawkentracker.helpers import parse_serverside
-from hawkentracker.model import Player, Match, MatchPlayer
+from hawkentracker.models.database import Player, Match, MatchPlayer
 from hawkentracker.util import value_or_default
 
 data = Blueprint("data", __name__, url_prefix="/data")

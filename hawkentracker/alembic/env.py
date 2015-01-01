@@ -19,7 +19,7 @@ fileConfig(config.config_file_name)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from hawkentracker.model import db
+from hawkentracker.models.database import db
 target_metadata = db.metadata
 
 # other values from the config, defined by the needs of env.py,

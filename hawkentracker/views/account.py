@@ -7,7 +7,7 @@ from hawkentracker.account import delete_user, logout_user
 from hawkentracker.helpers import to_next, to_last, access_denied
 from hawkentracker.interface import get_api, get_player_id
 from hawkentracker.mappings import LinkStatus
-from hawkentracker.model import Player, db
+from hawkentracker.models.database import Player, db
 from hawkentracker.permissions import permissions_view
 
 account = Blueprint("account", __name__, url_prefix="/account")
