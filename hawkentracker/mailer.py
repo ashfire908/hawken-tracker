@@ -16,7 +16,7 @@ def welcome_email(user):
 
 
 def reminder_email(user):
-    subject = "Hawken Leaderboards - Account details"
+    subject = "[Hawken Leaderboards] Account details"
     body = render_template("mailer/reminder.txt", user=user)
     html = render_template("mailer/reminder.jade", user=user)
 
@@ -24,7 +24,7 @@ def reminder_email(user):
 
 
 def verification_email(user):
-    subject = "Hawken Leaderboards - Verify your email address"
+    subject = "[Hawken Leaderboards] Verify your email address"
     body = render_template("mailer/verification.txt", user=user)
     html = render_template("mailer/verification.jade", user=user)
 
@@ -32,7 +32,7 @@ def verification_email(user):
 
 
 def password_reset_email(user):
-    subject = "Hawken Leaderboards - Password reset"
+    subject = "[Hawken Leaderboards] Password reset"
     body = render_template("mailer/password_reset.txt", user=user)
     html = render_template("mailer/password_reset.jade", user=user)
 
