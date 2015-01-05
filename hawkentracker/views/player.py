@@ -84,8 +84,11 @@ def view(target):
                 if stat is None:
                     continue
                 rank, total = get_global_rank(player.id, field)
-                percentage = rank / total
-                context["ranking"][ranking_names_full[field]] = (format_stat(stat, field) if show_stats else False, "Rank #%i" % rank if percentage < current_app.config["RANK_PERCENT_THRESHOLD"] else "Top {0:.0f}%".format(math.ceil(percentage * 100)))
+                if rank is None:
+                    context["ranking"][ranking_names_full[field]] = (format_stat(stat, field) if show_stats else False, "Unranked")
+                else:
+                    percentage = rank / total
+                    context["ranking"][ranking_names_full[field]] = (format_stat(stat, field) if show_stats else False, "Rank #%i" % rank if percentage < current_app.config["RANK_PERCENT_THRESHOLD"] else "Top {0:.0f}%".format(math.ceil(percentage * 100)))
 
     # Global stats
     if permissions_view.player.player(player.id).stats.overall:

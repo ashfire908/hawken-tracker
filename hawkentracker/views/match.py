@@ -55,8 +55,8 @@ def view(id):
     # Stats
     if permissions_view.match.match(match.id).stats:
         context["match"].update({
-            "average_mmr": match.average_mmr,
-            "average_level": match.average_level
+            "average_mmr": "{0:.2f}".format(match.average_mmr),
+            "average_level": "{0:.1f}".format(match.average_level)
         })
 
     # Players
