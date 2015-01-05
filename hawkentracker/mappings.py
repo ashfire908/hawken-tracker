@@ -55,10 +55,7 @@ default_privacy = {
     "player.player.match.list": 0,
     "player.player.match.match.view": 0,
     "player.player.group": 100,  # Groups are not implemented
-    "player.player.link.players": 0,
-    "match.match.view": False,
-    "match.match.players": False,
-    "match.match.stats": False
+    "player.player.link.players": 0
 }
 
 # Human-readable API mappings
@@ -72,7 +69,8 @@ region_names = CaseInsensitiveDict({
     "Australia": "Australia",
     "Comp-US-East": "Comp USA East",
     "Comp-US-West": "Comp USA West",
-    "Comp-UK": "Comp Europe"
+    "Comp-UK": "Comp Europe",
+    "SaoPaulo": "Brazil"
 })
 
 map_names = CaseInsensitiveDict({
