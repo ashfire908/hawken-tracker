@@ -25,6 +25,7 @@ def update_seen_players(players, poll_time):
     missing = 0
     for guid in set(players).difference([id[0] for id in db.session.query(Player.id).filter(Player.id.in_(players))]):
         player = Player(id=guid)
+        player.callsign = api_wrapper(lambda: get_api().get_user_callsign(guid))
         player.update(poll_time)
         db.session.add(player)
         missing += 1
@@ -359,6 +360,49 @@ def update_all(force=False):
         db.session.commit()
 
     return players, matches, rankings
+
+
+def populate_player_callsigns():
+    try:
+        logger.info("[Players] Populating callsigns")
+
+        query = Player.query.options(db.load_only("id", "callsign")).filter(Player.callsign.is_(None))
+
+        # Iterate over the players
+        i = 1
+        count = 0
+        for player in windowed_query(query, Player.id, current_app.config["TRACKER_BATCH_SIZE"]):
+            # Update the callsigns
+            player.callsign = api_wrapper(lambda: get_api().get_user_callsign(player.id, cache_skip=True))
+            db.session.add(player)
+
+            count += 1
+
+            if count % current_app.config["TRACKER_BATCH_SIZE"] == 0:
+                # Commit the chunk
+                logger.debug("[Players] Committing chunk %d", i)
+                db.session.commit()
+
+                logger.info("[Players] Chunk %d complete", i)
+
+                i += 1
+
+        if count % current_app.config["TRACKER_BATCH_SIZE"] != 0:
+            # Commit the chunk
+            logger.debug("[Players] Committing chunk %d", i)
+            db.session.commit()
+
+            logger.info("[Players] Chunk %d complete", i)
+    except:
+        logger.error("Exception encountered, rolling back...")
+        try:
+            db.session.rollback()
+        except:
+            logger.critical("Failed to roll back session!")
+            raise
+        raise
+
+    return count
 
 
 def decode_rank(rank):

@@ -15,7 +15,7 @@ def message(msg):
 def main(task, verbosity, force, debug):
     # Import what we need from within the app context
     from hawkentracker.models.database import db, PollLog, UpdateLog, dump_queries
-    from hawkentracker.tracker import poll_servers, update_all
+    from hawkentracker.tracker import poll_servers, update_all, populate_player_callsigns
 
     try:
         # Perform the task given
@@ -51,6 +51,14 @@ def main(task, verbosity, force, debug):
                 message("{0} {1}".format(poll_time, update_time))
             else:
                 message("Last poll: {0}\nLast update: {1}".format(poll, update))
+        elif task == "callsigns":
+            if verbosity >= 1:
+                message("Populating tracked player callsigns.")
+
+            players = populate_player_callsigns()
+
+            if verbosity >= 1:
+                message("Populated callsigns for {0} players.".format(players))
     finally:
         if debug:
             dump_queries(task)
@@ -59,7 +67,7 @@ def main(task, verbosity, force, debug):
 if __name__ == "__main__":
     # Parse args
     parser = argparse.ArgumentParser(description="Track players, matches, and their stats.")
-    parser.add_argument("task", choices=("setup", "poll", "update", "last"), help="specifies the task to perform - 'setup' creates the db, 'poll' updates the matches and player info, 'update' updates the player stats, and 'last' gets the last poll time")
+    parser.add_argument("task", choices=("setup", "poll", "update", "last", "callsigns"), help="specifies the task to perform - 'setup' creates the db, 'poll' updates the matches and player info, 'update' updates the player stats, 'last' gets the last poll time, and 'callsigns' populates player callsigns")
     parser.add_argument("--verbose", "-v", action="count", default=0)
     parser.add_argument("--force", "-f", action="store_true", default=False)
     parser.add_argument("--debug", action="store_true", default=False)

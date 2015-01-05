@@ -104,6 +104,7 @@ class Player(db.Model):
     __tablename__ = "players"
 
     id = db.Column(db.String(36), primary_key=True)
+    callsign = db.Column(db.String, unique=True)
     first_seen = db.Column(db.DateTime, nullable=False)
     last_seen = db.Column(db.DateTime, nullable=False)
     home_region = db.Column(db.String)
