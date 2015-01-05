@@ -39,8 +39,8 @@ six==1.8.0
 passlib==1.6.2
 
 # WTForms
-WTForms=2.0.1
-blinker=1.3
+WTForms==2.0.1
+blinker==1.3
 
 # Flask-WTF
-Flask-WTF=0.9.5
+Flask-WTF==0.9.5
