@@ -409,13 +409,15 @@ class User(db.Model):
 
     @db.validates("username")
     def validate_username(self, key, username):
-        assert len(username) >= current_app.config.get("USERNAME_MIN_LENGTH", 1)
+        assert len(username) >= current_app.config["USERNAME_MIN_LENGTH"]
+        assert len(username) <= current_app.config["USERNAME_MAX_LENGTH"]
         assert "@" not in username
         return username
 
     @db.validates("password")
     def validate_password(self, key, password):
-        assert len(password) >= current_app.config.get("PASSWORD_MIN_LENGTH", 1)
+        assert len(password) >= current_app.config["PASSWORD_MIN_LENGTH"]
+        assert len(password) <= current_app.config["PASSWORD_MAX_LENGTH"]
         return pwd_context.encrypt(password)
 
     @db.validates("email")

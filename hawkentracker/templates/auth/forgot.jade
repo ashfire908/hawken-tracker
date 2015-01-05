@@ -5,15 +5,20 @@ block content
         h1 Recover username/password
 
     form.form-horizontal(action=url_for("auth.forgot", next=request.args.next), method="post", role="form")
+        div!=form.csrf_token
         .form-group
-            p Forgot your username? use this
-            label.col-sm-2.control-label(for="email") Email
+            p Forgot your username? Enter your email to recover your account information.
+            !{form.email.label(class_="col-sm-2 control-label")}
             .col-sm-2
-                input.form-control(name="email", type="text", placeholder="Email")
+                !{form.email(class_="form-control", placeholder="Email")}
         .form-group
-            p Forgot your password? use this
-            label.col-sm-2.control-label(for="username") Username
+            .col-sm-offset-2.col-sm-2
+                !{form.recover_username(class_="btn btn-success")}
+        .form-group
+            p Forgot your password? Enter your username to request a password reset.
+            !{form.username.label(class_="col-sm-2 control-label")}
             .col-sm-2
-                input.form-control(name="username", type="text", placeholder="Username")
+                !{form.username(class_="form-control", placeholder="Username")}
         .form-group
-            button.btn.btn-success(type="submit") Recover account
+            .col-sm-offset-2.col-sm-2
+                !{form.recover_password(class_="btn btn-success")}

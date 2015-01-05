@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Hawken Tracker - Login views
 
-from flask import Blueprint, render_template, request, flash, current_app
+from flask import Blueprint, render_template, request, flash
 from flask.ext.login import current_user
 from hawkentracker.account import InvalidLogin, InactiveAccount, UsernameAlreadyExists, EmailAlreadyExists, login_user,\
     logout_user, create_user, force_login
@@ -9,8 +9,8 @@ from hawkentracker.helpers import to_next, to_index, access_denied
 from hawkentracker.mailer import mail, password_reset_email, reminder_email
 from hawkentracker.mappings import CoreRole
 from hawkentracker.models.database import User, TokenInvalid, TokenExpired, db
+from hawkentracker.models.form import LoginForm, RegistrationForm, ForgotAccountForm, PasswordResetForm
 from hawkentracker.permissions import permissions_view
-from hawkentracker.util import email_re
 
 
 auth = Blueprint("auth", __name__)
@@ -22,9 +22,11 @@ def login():
         flash("You are already logged in.", "info")
         return to_next("account.overview")
 
-    if request.method == "POST":
+    form = LoginForm()
+
+    if form.validate_on_submit():
         try:
-            login_user(request.form["username"], request.form["password"], request.form["remember"] == "yes")
+            login_user(form.username.data, form.password.data, form.remember.data)
         except InvalidLogin:
             flash("Invalid login.", "error")
         except InactiveAccount:
@@ -33,7 +35,7 @@ def login():
             flash("Successfully logged in!", "success")
             return to_next()
 
-    return render_template("auth/login.jade")
+    return render_template("auth/login.jade", form=form)
 
 
 @auth.route("/logout")
@@ -52,36 +54,22 @@ def register():
     elif permissions_view.user.create.self:
         return access_denied("You do not have permission to create a user.")
 
-    if request.method == "POST":
-        username = request.form["username"].strip()
-        email = request.form["email"].strip()
-        password = request.form["password"]
-        password_confirm = request.form["password_confirm"]
+    form = RegistrationForm()
 
-        if len(username) < current_app.config.get("MIN_USERNAME_LENGTH", 1):
-            flash("Your username must be at least {0} characters long.".format(current_app.config.get("USERNAME_MIN_LENGTH", 1)), "error")
-        elif "@" in username:
-            flash("Usernames cannot contain a @ symbol.", "error")
-        elif password != password_confirm:
-            flash("The passwords must match.", "error")
-        elif len(password) < current_app.config.get("PASSWORD_MIN_LENGTH", 1):
-            flash("Your password must be at least {0} characters long.".format(current_app.config.get("PASSWORD_MIN_LENGTH", 1)), "error")
-        elif email_re.match(email) is None:
-            flash("Your email is not valid.", "error")
+    if form.validate_on_submit():
+        try:
+            user = create_user(form.username.data, form.password.data, form.email.data, CoreRole.unconfirmed)
+        except UsernameAlreadyExists:
+            flash("Username already in use. Please choose another.", "error")
+        except EmailAlreadyExists:
+            flash("Email already in use. If you forgot your password, please use the forgot password feature.", "error")
         else:
-            try:
-                user = create_user(username, request.form["password"], email, CoreRole.unconfirmed)
-            except UsernameAlreadyExists:
-                flash("Username already in use. Please choose another.", "error")
-            except EmailAlreadyExists:
-                flash("Email already in use. If you forgot your password, please use the forgot password feature.", "error")
-            else:
-                force_login(user)
+            force_login(user)
 
-                flash("Successfully registered!", "success")
-                return to_next("account.overview")
+            flash("Successfully registered!", "success")
+            return to_next("account.overview")
 
-    return render_template("auth/register.jade")
+    return render_template("auth/register.jade", form=form)
 
 
 @auth.route("/forgot", methods=["GET", "POST"])
@@ -90,56 +78,59 @@ def forgot():
         flash("You are already logged in.", "info")
         return to_next("account.overview")
 
-    if request.method == "POST":
-        if request.form["username"] != "":
-            user = User.by_username(request.form["username"])
-            if user is not None:
-                user.generate_password_reset_token()
+    form = ForgotAccountForm()
 
-                db.session.add(user)
-                db.session.commit(user)
+    if form.validate_on_submit():
+        if form.recover_username.data:
+            user = User.by_email(form.email.data)
 
-                mail.send(password_reset_email(user))
-
-            # Mask invalid username as success
-            flash("Password reset email sent.", "success")
-            return to_next("auth.login")
-
-        if request.form["email"] != "":
-            user = User.by_email(request.form["email"])
             if user is not None:
                 mail.send(reminder_email(user))
                 flash("A reminder email with your account details has been sent.", "success")
                 return to_next("auth.login")
 
             flash("No user was found with that email. If you have a email change pending, use your old email address instead.", "error")
+        elif form.recover_password.data:
+            user = User.by_username(form.username.data)
+
+            if user is not None:
+                user.generate_password_reset_token()
+
+                db.session.add(user)
+                db.session.commit()
+
+                mail.send(password_reset_email(user))
+
+            # Mask invalid username as success
+            flash("Password reset email sent.", "success")
+            return to_next("auth.login")
         else:
             flash("Please specify either your username or email.", "error")
 
-    return render_template("auth/forgot.jade")
+    return render_template("auth/forgot.jade", form=form)
 
 
 @auth.route("/password_reset", methods=["GET", "POST"])
 def password_reset():
+    form = PasswordResetForm()
+
     if request.method == "GET":
         email = request.args.get("email")
         token = request.args.get("token")
-    else:
-        email = request.form.get("email")
-        token = request.form.get("token")
-        password = request.form.get("password")
-        password_confirm = request.form.get("password_confirm")
 
-    # Locate the user
-    user = User.by_email(email)
+        if email is None or token is None:
+            flash("Invalid parameters given.", "error")
+            return to_index()
 
-    if user is None:
-        flash("No such user found with that email.", "error")
-        return to_index()
+        # Locate the user
+        user = User.by_email(email)
 
-    if request.method == "GET":
+        if user is None:
+            flash("No such user found with given email.", "error")
+            return to_index()
+
+        # Verify the token
         try:
-            # Verify the token
             user.verify_password_reset(token)
         except TokenInvalid:
             flash("Invalid token given.", "error")
@@ -147,35 +138,41 @@ def password_reset():
         except TokenExpired:
             flash("This token has expired. Please request another password reset.", "error")
             return to_index()
-    else:
-        # Check password
-        if password != password_confirm:
-            flash("The passwords must match.", "error")
-        else:
-            try:
-                # Reset password
-                user.reset_password(token, password)
-            except TokenInvalid:
-                flash("Invalid token given.", "error")
-                return to_index()
-            except TokenExpired:
-                flash("This token has expired. Please request another password reset.", "error")
-                return to_index()
+
+        form.email.data = email
+        form.token.data = token
+    elif form.validate_on_submit():
+        # Get the user
+        user = User.by_email(form.email.data)
+
+        # Reset password
+        try:
+            user.reset_password(form.token.data, form.password.data)
+        except TokenInvalid:
+            flash("Invalid token given.", "error")
+            return to_index()
+        except TokenExpired:
+            flash("This token has expired. Please request another password reset.", "error")
+            return to_index()
 
             # Commit change
-            db.session.add(user)
-            db.session.commit()
+        db.session.add(user)
+        db.session.commit()
 
-            flash("Password successfully reset!", "success")
-            return to_next("auth.login")
+        flash("Password successfully reset!", "success")
+        return to_next("auth.login")
 
-    return render_template("auth/password_reset.jade")
+    return render_template("auth/password_reset.jade", form=form)
 
 
 @auth.route("/verify")
 def verify_email():
     email = request.args.get("email")
     token = request.args.get("token")
+
+    if email is None or token is None:
+        flash("Invalid parameters given.", "error")
+        return to_index()
 
     # Locate the user
     user = User.by_email(email)

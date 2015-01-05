@@ -5,19 +5,20 @@ block content
         h1 Login
 
     form.form-horizontal(action=url_for("auth.login", next=request.args.next), method="post", role="form")
+        div!=form.csrf_token
         .form-group
-            label.col-sm-2.control-label(for="username") Username
+            !{form.username.label(class_="col-sm-2 control-label")}
             .col-sm-2
-                input.form-control(name="username", type="text", placeholder="Username")
+                !{form.username(class_="form-control", placeholder="Username")}
         .form-group
-            label.col-sm-2.control-label(for="password") Password
+            !{form.password.label(class_="col-sm-2 control-label")}
             .col-sm-2
-                input.form-control(name="password", type="password", placeholder="Password")
+                !{form.password(class_="form-control", placeholder="Password")}
         .form-group
-            label.col-sm-2.control-label(for="remember") Remember Me
+            !{form.remember.label(class_="col-sm-2 control-label")}
             .col-sm-2
-                input.checkbox(name="remember", type="checkbox", value="yes")
+                !{form.remember(class_="checkbox")}
         .form-group
             .col-sm-offset-2.col-sm-2.btn-group
-                button.btn.btn-success(type="submit") Sign in
+                !{form.login(class_="btn btn-success")}
                 a.btn.btn-default(href=url_for("auth.register", next=request.args.next)) Register
