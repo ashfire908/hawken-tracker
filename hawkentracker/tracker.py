@@ -292,12 +292,14 @@ def poll_servers():
         matches_count = len(matches)
 
         if players_count > 0:
-            # Update players
-            update_seen_players(players, start)
+            with db.session.no_autoflush:
+                # Update players
+                update_seen_players(players, start)
 
         if matches_count > 0:
-            # Update matches
-            update_seen_matches(matches, start)
+            with db.session.no_autoflush:
+                # Update matches
+                update_seen_matches(matches, start)
 
         # Commit the players and matches
         logger.debug("[Poll] Committing data")
@@ -334,11 +336,12 @@ def update_all(force=False):
             # Get the last update
             last = UpdateLog.last()
 
-        # Update the player data
-        players = update_players(last)
+        with db.session.no_autoflush:
+            # Update the player data
+            players = update_players(last)
 
-        # Update the match stats
-        matches = update_matches(last)
+            # Update the match stats
+            matches = update_matches(last)
     except:
         logger.error("Exception encountered, rolling back...")
         try:
