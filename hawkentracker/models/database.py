@@ -102,9 +102,12 @@ class NativeIntEnum(db.TypeDecorator):
 
 class Player(db.Model):
     __tablename__ = "players"
+    __table_args__ = (
+        db.Index("ix_players_callsign", db.text("lower(callsign)"), unique=True),
+    )
 
     id = db.Column(db.String(36), primary_key=True)
-    callsign = db.Column(db.String, unique=True)
+    callsign = db.Column(db.String)
     first_seen = db.Column(db.DateTime, nullable=False)
     last_seen = db.Column(db.DateTime, nullable=False)
     home_region = db.Column(db.String)
@@ -132,9 +135,6 @@ class Player(db.Model):
     user = db.relationship("User", foreign_keys=[link_user], uselist=False, backref="players")
     blacklister = db.relationship("User", foreign_keys=[blacklist_by])
 
-    def __repr__(self):
-        return "<Player(id='{0}')>".format(self.id)
-
     def update(self, poll_time):
         if self.first_seen is None:
             self.first_seen = poll_time
@@ -147,6 +147,13 @@ class Player(db.Model):
     def unlink(self):
         self.link_user = None
         self.link_status = LinkStatus.none
+
+    def __repr__(self):
+        return "<Player(id='{0}')>".format(self.id)
+
+    @staticmethod
+    def by_callsign(callsign):
+        return Player.query.filter(db.func.lower(Player.callsign) == callsign.lower()).first()
 
 
 class PlayerStats(db.Model):
