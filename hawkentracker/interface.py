@@ -8,7 +8,7 @@ from requests.exceptions import HTTPError, Timeout
 from hawkenapi.util import verify_guid
 from hawkenapi.cache import Cache
 from hawkenapi.client import Client
-from hawkenapi.exceptions import ServiceUnavailable
+from hawkenapi.exceptions import ServiceUnavailable, InternalServerError
 from hawkenapi.interface import Session
 
 logger = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ def api_wrapper(func):
             logger.warn("[API] Retrying failed call: {0} {1} ".format(type(last_exception), last_exception))
         try:
             return func()
-        except (ServiceUnavailable, HTTPError, Timeout) as e:
+        except (ServiceUnavailable, InternalServerError, HTTPError, Timeout) as e:
             last_exception = e
 
     raise InterfaceException from last_exception
