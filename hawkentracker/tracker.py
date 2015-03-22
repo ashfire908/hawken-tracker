@@ -24,16 +24,17 @@ def update_seen_players(players, poll_time):
     new_players = list(set(players).difference([id[0] for id in db.session.query(Player.id).filter(Player.id.in_(players))]))
     missing = len(new_players)
 
-    # Load callsigns
-    callsigns = api_wrapper(lambda: get_api().get_user_callsign(new_players, cache_skip=True))
+    if missing > 0:
+        # Load callsigns
+        callsigns = api_wrapper(lambda: get_api().get_user_callsign(new_players, cache_skip=True))
 
-    # Add new players
-    logger.debug("[Players] Adding new players")
-    for guid in new_players:
-        player = Player(id=guid)
-        player.callsign = callsigns.get(guid, None)
-        player.update(poll_time)
-        db.session.add(player)
+        # Add new players
+        logger.debug("[Players] Adding new players")
+        for guid in new_players:
+            player = Player(id=guid)
+            player.callsign = callsigns.get(guid, None)
+            player.update(poll_time)
+            db.session.add(player)
 
     return len(players) - missing, missing
 
