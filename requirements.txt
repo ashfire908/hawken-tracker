@@ -6,7 +6,7 @@ psycopg2==2.5.4
 alembic==0.7.2
 
 # Hawken API
-hawken-api==0.6.2.1
+hawken-api==0.6.3
 enum34==1.0.4
 requests==2.5.1
 

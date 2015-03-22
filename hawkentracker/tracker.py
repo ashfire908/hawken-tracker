@@ -20,15 +20,20 @@ def update_seen_players(players, poll_time):
     logger.debug("[Players] Updating existing players")
     Player.query.filter(Player.id.in_(players)).update({"last_seen": poll_time}, synchronize_session=False)
 
+    # Collect new players
+    new_players = set(players).difference([id[0] for id in db.session.query(Player.id).filter(Player.id.in_(players))])
+    missing = len(new_players)
+
+    # Load callsigns
+    callsigns = api_wrapper(lambda: get_api().get_user_callsign(new_players, cache_skip=True))
+
     # Add new players
     logger.debug("[Players] Adding new players")
-    missing = 0
-    for guid in set(players).difference([id[0] for id in db.session.query(Player.id).filter(Player.id.in_(players))]):
+    for guid in new_players:
         player = Player(id=guid)
-        player.callsign = api_wrapper(lambda: get_api().get_user_callsign(guid))
+        player.callsign = callsigns.get(guid, None)
         player.update(poll_time)
         db.session.add(player)
-        missing += 1
 
     return len(players) - missing, missing
 
@@ -85,7 +90,7 @@ def add_match_players(match, players, poll_time):
         db.session.add(matchplayer)
 
 
-def update_players(last):
+def update_players(last, callsign=False):
     logger.info("[Players] Updating players")
 
     # Get the list of players to update
@@ -107,6 +112,11 @@ def update_players(last):
         # Update the region
         logger.debug("[Players] Updating regions for chunk %d", i)
         update_player_regions(chunk)
+
+        if callsign:
+            # Update the callsigns
+            logger.debug("[Players] Updating callsigns for chunk %d", i)
+            update_player_callsigns(chunk)
 
         # Commit the chunk
         logger.debug("[Players] Committing chunk %d", i)
@@ -138,7 +148,7 @@ def update_player_stats(players, update_time):
 
 
 def update_player_regions(players):
-    # Iterate though the players
+    # Iterate through the players
     for player in players:
         # Detect most common region
         regions = db.session.query(Match.server_region, func.count(Match.server_region)).\
@@ -154,6 +164,16 @@ def update_player_regions(players):
             pass
         else:
             db.session.add(player)
+
+
+def update_player_callsigns(players):
+    # Load the callsigns
+    callsigns = api_wrapper(lambda: get_api().get_user_callsign([player.id for player in players], cache_skip=True))
+
+    # Iterate through the players
+    for player in players:
+        player.callsign = callsigns.get(player.id, None)
+        db.session.add(player)
 
 
 def update_matches(last):
