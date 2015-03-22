@@ -1,3 +1,6 @@
+# Gemfury repo
+--extra-index-url https://pypi.fury.io/xvSRZNrCkiBFXAgMu6Au/ashfire908/
+
 # SQLAlchemy
 SQLAlchemy==0.9.8
 psycopg2==2.5.4
