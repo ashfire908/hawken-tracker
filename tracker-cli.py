@@ -5,6 +5,7 @@
 import sys
 import argparse
 from hawkentracker import create_app
+from hawkentracker.mappings import UpdateFlag
 
 
 def message(msg):
@@ -12,10 +13,10 @@ def message(msg):
     sys.stdout.flush()
 
 
-def main(task, verbosity, force, debug):
+def main(task, verbosity, debug, update_flags):
     # Import what we need from within the app context
     from hawkentracker.models.database import db, PollLog, UpdateLog, dump_queries
-    from hawkentracker.tracker import poll_servers, update_all, populate_player_callsigns
+    from hawkentracker.tracker import poll_servers, update_tracker, populate_player_callsigns
 
     try:
         # Perform the task given
@@ -37,7 +38,7 @@ def main(task, verbosity, force, debug):
         elif task == "update":
             if verbosity >= 1:
                 message("Updating rankings and cached player/match data.")
-            players, matches, rankings = update_all(force=force)
+            players, matches, rankings = update_tracker(update_flags)
 
             if verbosity >= 1:
                 message("Updated {0} players and {1} matches.".format(players, matches))
@@ -69,8 +70,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Track players, matches, and their stats.")
     parser.add_argument("task", choices=("setup", "poll", "update", "last", "callsigns"), help="specifies the task to perform - 'setup' creates the db, 'poll' updates the matches and player info, 'update' updates the player stats, 'last' gets the last poll time, and 'callsigns' populates player callsigns")
     parser.add_argument("--verbose", "-v", action="count", default=0)
-    parser.add_argument("--force", "-f", action="store_true", default=False)
     parser.add_argument("--debug", action="store_true", default=False)
+    parser.add_argument("--update-old", action="store_true", default=False)
+    parser.add_argument("--update-callsigns", action="store_true", default=False)
 
     args = parser.parse_args()
 
@@ -89,7 +91,12 @@ if __name__ == "__main__":
     if args.debug:
         parameters["DEBUG"] = True
 
+    update_flags = {
+        UpdateFlag.old: args.update_old,
+        UpdateFlag.callsigns: args.update_callsigns
+    }
+
     # Create app and enter context
     app = create_app(config_parameters=parameters)
     with app.app_context():
-        main(args.task, verbosity=args.verbose, force=args.force, debug=args.debug)
+        main(args.task, verbosity=args.verbose, debug=args.debug, update_flags=update_flags)

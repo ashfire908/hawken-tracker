@@ -8,7 +8,7 @@ from sqlalchemy.orm import joinedload, contains_eager
 from flask import current_app
 from hawkentracker.interface import get_api, api_wrapper, get_redis, format_redis_key
 from hawkentracker.models.database import db, windowed_query, Player, PlayerStats, Match, MatchPlayer, PollLog, UpdateLog
-from hawkentracker.mappings import ranking_fields
+from hawkentracker.mappings import ranking_fields, UpdateFlag
 
 logger = logging.getLogger(__name__)
 
@@ -321,7 +321,7 @@ def poll_servers():
     return players_count, matches_count
 
 
-def update_all(force=False):
+def update_tracker(flags):
     success = False
     players = 0
     matches = 0
@@ -329,7 +329,7 @@ def update_all(force=False):
     start = datetime.now()
 
     try:
-        if force:
+        if UpdateFlag.old in flags:
             # Force full update
             last = None
         else:
@@ -338,7 +338,7 @@ def update_all(force=False):
 
         with db.session.no_autoflush:
             # Update the player data
-            players = update_players(last)
+            players = update_players(last, callsign=UpdateFlag.callsigns in flags)
 
             # Update the match stats
             matches = update_matches(last)

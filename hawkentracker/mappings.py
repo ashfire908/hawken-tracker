@@ -1,8 +1,14 @@
 # -*- coding: utf-8 -*-
 # Hawken Tracker - Mappings
 
-from enum import IntEnum, unique
+from enum import Enum, IntEnum, unique
 from hawkentracker.util import CaseInsensitiveDict
+
+# Internal enums
+@unique
+class UpdateFlag(Enum):
+    old = "old"
+    callsigns = "callsigns"
 
 
 # Database enums
