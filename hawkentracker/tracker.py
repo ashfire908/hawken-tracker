@@ -21,7 +21,7 @@ def update_seen_players(players, poll_time):
     Player.query.filter(Player.id.in_(players)).update({"last_seen": poll_time}, synchronize_session=False)
 
     # Collect new players
-    new_players = set(players).difference([id[0] for id in db.session.query(Player.id).filter(Player.id.in_(players))])
+    new_players = list(set(players).difference([id[0] for id in db.session.query(Player.id).filter(Player.id.in_(players))]))
     missing = len(new_players)
 
     # Load callsigns
