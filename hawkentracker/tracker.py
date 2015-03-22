@@ -138,13 +138,14 @@ def update_player_stats(players, update_time):
 
     # Update players
     for player in players:
-        if player.stats is None:
-            player_stats = PlayerStats(player_id=player.id)
-            player_stats.update(stats[player.id], update_time)
-            db.session.add(player_stats)
-        else:
-            player.stats.update(stats[player.id], update_time)
-            db.session.add(player.stats)
+        if player.id in stats:
+            if player.stats is None:
+                player_stats = PlayerStats(player_id=player.id)
+                player_stats.update(stats[player.id], update_time)
+                db.session.add(player_stats)
+            else:
+                player.stats.update(stats[player.id], update_time)
+                db.session.add(player.stats)
 
 
 def update_player_regions(players):
