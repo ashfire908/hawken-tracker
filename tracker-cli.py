@@ -83,7 +83,7 @@ if __name__ == "__main__":
         host, port = args.remote_debug
 
         import pydevd
-        pydevd.settrace(host, port=int(port), stdoutToServer=True, stderrToServer=True)
+        pydevd.settrace(host, port=int(port), stdoutToServer=True, stderrToServer=True, suspend=False)
 
     # Setup config parameters
     parameters = {}
