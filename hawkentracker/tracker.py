@@ -351,19 +351,21 @@ def update_tracker(flags):
     start = datetime.now()
 
     try:
-        if UpdateFlag.old in flags:
-            # Force full update
-            last = None
-        else:
-            # Get the last update
-            last = UpdateLog.last()
+        # Get the last update
+        last = UpdateLog.last()
 
         with db.session.no_autoflush:
             # Update the player data
-            players = update_players(last, callsign=UpdateFlag.callsigns in flags)
+            if UpdateFlag.players in flags:
+                players = update_players(None, callsign=UpdateFlag.callsigns in flags)
+            else:
+                players = update_players(last, callsign=UpdateFlag.callsigns in flags)
 
             # Update the match stats
-            matches = update_matches(last)
+            if UpdateFlag.matches in flags:
+                matches = update_matches(None)
+            else:
+                matches = update_matches(last)
     except:
         logger.error("Exception encountered, rolling back...")
         try:

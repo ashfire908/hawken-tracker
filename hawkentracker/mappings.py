@@ -7,7 +7,8 @@ from hawkentracker.util import CaseInsensitiveDict
 # Internal enums
 @unique
 class UpdateFlag(Enum):
-    old = "old"
+    players = "players"
+    matches = "matches"
     callsigns = "callsigns"
 
 
