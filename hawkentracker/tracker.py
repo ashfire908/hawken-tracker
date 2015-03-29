@@ -92,13 +92,15 @@ def add_match_players(match, players, poll_time):
         db.session.add(matchplayer)
 
 
-def update_players(last, callsign=False):
+def update_players(last, flags):
     logger.info("[Players] Updating players")
+
+    callsign = UpdateFlag.callsigns in flags
 
     # Get the list of players to update
     query = Player.query.options(joinedload(Player.stats))
     filters = []
-    if last is not None:
+    if UpdateFlag.players not in flags and last is not None:
         filters.append(Player.last_seen > last)
 
     update_time = datetime.now()
@@ -179,13 +181,13 @@ def update_player_callsigns(players):
         db.session.add(player)
 
 
-def update_matches(last):
+def update_matches(last, flags):
     logger.info("[Matches] Updating matches")
 
     # Get the list of matches to update
     query = Match.query
     filters = []
-    if last is not None:
+    if UpdateFlag.matches not in flags and last is not None:
         filters.append(Match.last_seen > last)
 
     # Iterate over the matches
@@ -357,16 +359,10 @@ def update_tracker(flags):
 
         with db.session.no_autoflush:
             # Update the player data
-            if UpdateFlag.players in flags:
-                players = update_players(None, callsign=UpdateFlag.callsigns in flags)
-            else:
-                players = update_players(last, callsign=UpdateFlag.callsigns in flags)
+            players = update_players(last, flags)
 
             # Update the match stats
-            if UpdateFlag.matches in flags:
-                matches = update_matches(None)
-            else:
-                matches = update_matches(last)
+            matches = update_matches(last, flags)
     except:
         logger.error("Exception encountered, rolling back...")
         try:
