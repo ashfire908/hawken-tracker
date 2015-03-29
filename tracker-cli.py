@@ -97,8 +97,7 @@ if __name__ == "__main__":
     elif args.verbose >= 3:
         parameters["LOG_LEVEL"] = "DEBUG"
 
-    if args.debug:
-        parameters["DEBUG"] = True
+    parameters["DEBUG"] = args.debug
 
     update_flags = {
         UpdateFlag.players: args.update_players,
