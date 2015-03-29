@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # Hawken Tracker - Database Models
 
+import json
+import logging
+import os
 from datetime import datetime
 
 from passlib.context import CryptContext
@@ -10,6 +13,7 @@ from flask.ext.sqlalchemy import SQLAlchemy, get_debug_queries
 from hawkentracker.mappings import LinkStatus, CoreRole
 from hawkentracker.util import email_re, random_hex
 
+logger = logging.getLogger(__name__)
 db = SQLAlchemy()
 pwd_context = CryptContext(schemes=["sha256_crypt"])
 
@@ -70,15 +74,88 @@ def column_windows(session, column, windowsize, *conditions):
         yield int_for_range(start, end)
 
 
-def windowed_query(q, column, windowsize, *conditions, streaming=True):
+def windowed_query(q, column, windowsize, *conditions, streaming=True, checkpointer=None):
     """"Break a Query into windows on a given column."""
 
-    for whereclause in column_windows(q.session, column, windowsize, *conditions):
+    windows = list(column_windows(q.session, column, windowsize, *conditions))
+
+    if checkpointer is not None:
+        if checkpointer.in_progress:
+            i = checkpointer.resume()
+        else:
+            i = 0
+            checkpointer.start()
+    else:
+        i = 0
+
+    for whereclause in windows[i:]:
         if streaming:
             for row in q.filter(whereclause).order_by(column):
                 yield row
         else:
             yield q.filter(whereclause).order_by(column).all()
+
+        if checkpointer is not None:
+            checkpointer.checkpoint(i)
+
+        i += 1
+
+    if checkpointer is not None:
+        checkpointer.end()
+
+
+class Checkpointer:
+    def __init__(self, task):
+        self.task = task
+
+        # Prepare folder
+        path = os.path.join(current_app.instance_path, "checkpointer")
+        if not os.path.isdir(path):
+            os.makedirs(path)
+        self.filename = os.path.join(path, "{0}.json".format(self.task))
+
+        # Initial load
+        self.data = None
+        self._load()
+
+    def _load(self):
+        try:
+            with open(self.filename, "r") as f:
+                self.data = json.load(f)
+        except FileNotFoundError:
+            self.data = None
+
+    def _save(self):
+        with open(self.filename, "w") as f:
+            json.dump(self.data, f)
+
+    def _clear(self):
+        os.remove(self.filename)
+        self.data = None
+
+    def start(self):
+        self.data = {
+            "current_window": 0
+        }
+
+        self._save()
+
+    def resume(self):
+        logger.info("Resuming %s from checkpoint %d", self.task, self.data["current_window"] + 1)
+        return self.data["current_window"]
+
+    def checkpoint(self, i):
+        self.data["current_window"] = i
+        self._save()
+
+        logger.debug("Checkpoint %d reached for %s", i + 1, self.task)
+
+    def end(self):
+        self._clear()
+
+    @property
+    def in_progress(self):
+        return self.data is not None
 
 
 class NativeIntEnum(db.TypeDecorator):

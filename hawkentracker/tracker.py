@@ -7,7 +7,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload, contains_eager
 from flask import current_app
 from hawkentracker.interface import get_api, api_wrapper, get_redis, format_redis_key
-from hawkentracker.models.database import db, windowed_query, Player, PlayerStats, Match, MatchPlayer, PollLog, UpdateLog
+from hawkentracker.models.database import db, windowed_query, Player, PlayerStats, Match, MatchPlayer, PollLog,\
+    UpdateLog, Checkpointer
 from hawkentracker.mappings import ranking_fields, UpdateFlag
 
 logger = logging.getLogger(__name__)
@@ -105,7 +106,7 @@ def update_players(last, callsign=False):
     # Iterate over the players
     i = 1
     count = 0
-    for chunk in windowed_query(query, Player.last_seen, current_app.config["TRACKER_BATCH_SIZE"], *filters, streaming=False):
+    for chunk in windowed_query(query, Player.last_seen, current_app.config["TRACKER_BATCH_SIZE"], *filters, streaming=False, checkpointer=Checkpointer("players")):
         # Update the stats
         logger.debug("[Players] Updating stats for chunk %d", i)
         update_player_stats(chunk, update_time)
@@ -190,7 +191,7 @@ def update_matches(last):
     # Iterate over the matches
     i = 1
     count = 0
-    for match in windowed_query(query, Match.last_seen, current_app.config["TRACKER_BATCH_SIZE"], *filters):
+    for match in windowed_query(query, Match.last_seen, current_app.config["TRACKER_BATCH_SIZE"], *filters, checkpointer=Checkpointer("matches")):
         # Update the averages
         update_match_averages(match)
 
@@ -398,7 +399,7 @@ def populate_player_callsigns():
         # Iterate over the players
         i = 1
         count = 0
-        for player in windowed_query(query, Player.id, current_app.config["TRACKER_BATCH_SIZE"]):
+        for player in windowed_query(query, Player.id, current_app.config["TRACKER_BATCH_SIZE"], checkpointer=Checkpointer("callsigns")):
             # Update the callsigns
             player.callsign = api_wrapper(lambda: get_api().get_user_callsign(player.id, cache_skip=True))
             db.session.add(player)
