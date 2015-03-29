@@ -71,11 +71,19 @@ if __name__ == "__main__":
     parser.add_argument("task", choices=("setup", "poll", "update", "last", "callsigns"), help="specifies the task to perform - 'setup' creates the db, 'poll' updates the matches and player info, 'update' updates the player stats, 'last' gets the last poll time, and 'callsigns' populates player callsigns")
     parser.add_argument("--verbose", "-v", action="count", default=0)
     parser.add_argument("--debug", action="store_true", default=False)
+    parser.add_argument("--remote-debug", nargs=2, default=False)
     parser.add_argument("--update-players", action="store_true", default=False)
     parser.add_argument("--update-matches", action="store_true", default=False)
     parser.add_argument("--update-callsigns", action="store_true", default=False)
 
     args = parser.parse_args()
+
+    if args.remote_debug:
+        # Setup remote debugging
+        host, port = args.remote_debug
+
+        import pydevd
+        pydevd.settrace(host, port=int(port), stdoutToServer=True, stderrToServer=True)
 
     # Setup config parameters
     parameters = {}
