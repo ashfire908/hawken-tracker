@@ -4,7 +4,7 @@
 import logging
 from redis import StrictRedis
 from flask import current_app, g
-from requests.exceptions import HTTPError, Timeout
+from requests.exceptions import HTTPError, Timeout, ConnectionError
 from hawkenapi.util import verify_guid
 from hawkenapi.cache import Cache
 from hawkenapi.client import Client
@@ -66,7 +66,7 @@ def api_wrapper(func):
             logger.warn("[API] Retrying failed call: {0} {1} ".format(type(last_exception), last_exception))
         try:
             return func()
-        except (ServiceUnavailable, InternalServerError, HTTPError, Timeout) as e:
+        except (ServiceUnavailable, InternalServerError, HTTPError, Timeout, ConnectionError) as e:
             last_exception = e
 
     raise InterfaceException from last_exception
