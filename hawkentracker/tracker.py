@@ -193,7 +193,7 @@ def update_matches(last, flags):
     # Iterate over the matches
     i = 1
     count = 0
-    for match in windowed_query(query, Match.last_seen, current_app.config["TRACKER_BATCH_SIZE"], *filters, checkpointer=Checkpointer("matches")):
+    for match in windowed_query(query, Match.last_seen, current_app.config["TRACKER_BATCH_SIZE"], *filters):
         # Update the averages
         update_match_averages(match)
 
@@ -395,7 +395,7 @@ def populate_player_callsigns():
         # Iterate over the players
         i = 1
         count = 0
-        for player in windowed_query(query, Player.id, current_app.config["TRACKER_BATCH_SIZE"], checkpointer=Checkpointer("callsigns")):
+        for player in windowed_query(query, Player.id, current_app.config["TRACKER_BATCH_SIZE"]):
             # Update the callsigns
             player.callsign = api_wrapper(lambda: get_api().get_user_callsign(player.id, cache_skip=True))
             db.session.add(player)
