@@ -67,9 +67,9 @@ def format_dhms(seconds, skip=0):
 
 
 def format_stat(stat, field):
-    if field in ("mmr", "xp_per_min", "hc_per_min", "kda", "damage", "win_loss", "dm_win_loss", "tdm_win_loss", "ma_win_loss", "sg_win_loss", "coop_win_loss", "cooptdm_win_loss"):
+    if field in ("mmr", "xp_per_min", "hc_per_min", "kda", "damage_ratio", "win_loss", "dm_win_loss", "tdm_win_loss", "ma_win_loss", "sg_win_loss", "coop_win_loss", "cooptdm_win_loss"):
         return "{0:.2f}".format(stat)
-    if field in ("kill_steals", "critical_assists"):
+    if field in ("kill_steal_ratio", "critical_assist_ratio"):
         return "{0:.2f}%".format(stat * 100)
     if field == "time_played":
         return format_dhms(stat)

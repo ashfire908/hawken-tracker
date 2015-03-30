@@ -44,9 +44,9 @@ class CoreRole(IntEnum):
     user = 3
 
 # Redis ranked fields
-ranking_fields = ("mmr", "time_played", "xp", "xp_per_min", "hc", "hc_per_min", "kda", "kill_steals",
-                  "critical_assists", "damage", "win_loss", "dm_win_loss", "tdm_win_loss", "ma_win_loss", "sg_win_loss",
-                  "coop_win_loss", "cooptdm_win_loss")
+ranking_fields = ("mmr", "time_played", "xp", "xp_per_min", "hc", "hc_per_min", "kda", "kill_steal_ratio",
+                  "critical_assist_ratio", "damage_ratio", "win_loss", "dm_win_loss", "tdm_win_loss", "ma_win_loss",
+                  "sg_win_loss", "coop_win_loss", "cooptdm_win_loss")
 
 # Roles and permissions
 default_privacy = {
@@ -114,9 +114,9 @@ ranking_names = {
     "hc": "HC",
     "hc_per_min": "HC/Min",
     "kda": "KDA Ratio",
-    "kill_steals": "Steals/Kills",
-    "critical_assists": "Critical/Assists",
-    "damage": "Damage Ratio",
+    "kill_steal_ratio": "Steals/Kills",
+    "critical_assist_ratio": "Critical/Assists",
+    "damage_ratio": "Damage Ratio",
     "win_loss": "Win/Loss",
     "dm_win_loss": "DM Win/Loss",
     "tdm_win_loss": "TDM Win/Loss",
@@ -134,9 +134,9 @@ ranking_names_full = {
     "hc": "Total HC",
     "hc_per_min": "HC per Min",
     "kda": "Kills + Assists / Deaths",
-    "kill_steals": "Kill Steals / Kills",
-    "critical_assists": "Critical / Assists",
-    "damage": "Damage Ratio",
+    "kill_steal_ratio": "Kill Steals / Kills",
+    "critical_assist_ratio": "Critical / Assists",
+    "damage_ratio": "Damage Ratio",
     "win_loss": "Win/Loss",
     "dm_win_loss": "DM Win/Loss",
     "tdm_win_loss": "TDM Win/Loss",

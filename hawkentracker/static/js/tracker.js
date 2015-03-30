@@ -8,9 +8,9 @@ var leaderboard_map = {
   "xp_per_min": "XP/Min",
   "hc_per_min": "HC/Min",
   "kda": "KDA Ratio",
-  "kill_steals": "Steals/Kills",
-  "critical_assists": "Critical/Assists",
-  "damage": "Damage Ratio",
+  "kill_steal_ratio": "Steals/Kills",
+  "critical_assist_ratio": "Critical/Assists",
+  "damage_ratio": "Damage Ratio",
   "win_loss": "Win/Loss",
   "dm_win_loss": "DM Win/Loss",
   "tdm_win_loss": "TDM Win/Loss",
@@ -159,7 +159,7 @@ function setup_leaderboard(table, menu, label, endpoint, sort) {
       case "xp_per_min":
       case "hc_per_min":
       case "kda":
-      case "damage":
+      case "damage_ratio":
       case "win_loss":
       case "dm_win_loss":
       case "tdm_win_loss":
@@ -179,8 +179,8 @@ function setup_leaderboard(table, menu, label, endpoint, sort) {
         info["render"] = format_fixed;
         info["defaultContent"] = "";
         break;
-      case "kill_steals":
-      case "critical_assists":
+      case "kill_steal_ratio":
+      case "critical_assist_ratio":
         info["width"] = "100px";
         info["render"] = format_percent;
         info["defaultContent"] = "";
