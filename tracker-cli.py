@@ -99,11 +99,13 @@ if __name__ == "__main__":
 
     parameters["DEBUG"] = args.debug
 
-    update_flags = {
-        UpdateFlag.players: args.update_players,
-        UpdateFlag.matches: args.update_matches,
-        UpdateFlag.callsigns: args.update_callsigns
-    }
+    update_flags = []
+    if args.update_players:
+        update_flags.append(UpdateFlag.players)
+    if args.update_matches:
+        update_flags.append(UpdateFlag.matches)
+    if args.update_callsigns:
+        update_flags.append(UpdateFlag.callsigns)
 
     # Create app and enter context
     app = create_app(config_parameters=parameters)
