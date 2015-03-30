@@ -191,7 +191,7 @@ class Player(db.Model):
     common_region = db.Column(db.String)
     link_user = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     link_status = db.Column(NativeIntEnum(LinkStatus), default=LinkStatus.none, nullable=False)
-    opt_out = db.Column(db.Boolean, default=False, nullable=False)
+    opt_out = db.Column(db.Boolean)
     blacklisted = db.Column(db.Boolean, default=False, nullable=False)
     blacklist_reason = db.Column(db.String)
     blacklist_by = db.Column(db.Integer, db.ForeignKey("users.id"))
