@@ -92,7 +92,7 @@ def add_match_players(match, players, poll_time):
         db.session.add(matchplayer)
 
 
-def update_players(last, flags):
+def update_players(update_time, last, flags):
     logger.info("[Players] Updating players")
 
     callsign = UpdateFlag.callsigns in flags
@@ -102,8 +102,6 @@ def update_players(last, flags):
     filters = []
     if UpdateFlag.players not in flags and last is not None:
         filters.append(Player.last_seen > last)
-
-    update_time = datetime.now()
 
     # Iterate over the players
     i = 1
@@ -359,7 +357,7 @@ def update_tracker(flags):
 
         with db.session.no_autoflush:
             # Update the player data
-            players = update_players(last, flags)
+            players = update_players(start, last, flags)
 
             # Update the match stats
             matches = update_matches(last, flags)
