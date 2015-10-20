@@ -9,8 +9,7 @@ psycopg2==2.5.4
 alembic==0.7.2
 
 # Hawken API
-hawkenapi==0.6.3.1
-enum34==1.0.4
+hawkenapi==0.6.3.2
 requests==2.5.1
 
 # Redis
