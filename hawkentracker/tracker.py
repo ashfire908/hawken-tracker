@@ -102,6 +102,7 @@ def update_players(update_time, last, flags):
     filters = []
     if UpdateFlag.players not in flags and last is not None:
         filters.append(Player.last_seen > last)
+    filters.append(Player.first_seen <= update_time)
 
     # Iterate over the players
     i = 1
@@ -179,7 +180,7 @@ def update_player_callsigns(players):
         db.session.add(player)
 
 
-def update_matches(last, flags):
+def update_matches(update_time, last, flags):
     logger.info("[Matches] Updating matches")
 
     # Get the list of matches to update
@@ -187,6 +188,7 @@ def update_matches(last, flags):
     filters = []
     if UpdateFlag.matches not in flags and last is not None:
         filters.append(Match.last_seen > last)
+    filters.append(Match.first_seen <= update_time)
 
     # Iterate over the matches
     i = 1
@@ -360,7 +362,7 @@ def update_tracker(flags):
             players = update_players(start, last, flags)
 
             # Update the match stats
-            matches = update_matches(last, flags)
+            matches = update_matches(start, last, flags)
     except:
         logger.error("Exception encountered, rolling back...")
         try:
