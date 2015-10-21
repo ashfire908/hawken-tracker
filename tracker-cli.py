@@ -68,7 +68,7 @@ def main(task, verbosity, debug, update_flags):
 if __name__ == "__main__":
     # Parse args
     parser = argparse.ArgumentParser(description="Tool for managing the tracker (poll servers, update tracker, etc).")
-    parser.add_argument("task", choices=("setup", "poll", "update", "last", "callsigns"), help="specifies the task to perform - 'setup' creates the db, 'poll' updates the matches and player info, 'update' updates the player stats, 'last' gets the last poll time, and 'callsigns' populates player callsigns")
+    parser.add_argument("task", choices=("setup", "poll", "update", "last", "callsigns"), help="specifies the task to perform - 'setup' creates the db, 'poll' updates the matches and player info, 'update' updates the player stats, 'last' gets the last poll time, and 'callsigns' updates player callsigns")
     parser.add_argument("--verbose", "-v", action="count", default=0, help="increase verbosity and log level")
     parser.add_argument("--debug", action="store_true", default=False, help="enable debug mode (forced to off by default)")
     parser.add_argument("--remote-debug", nargs=2, metavar=('host', 'port'), default=False, help="attach to a remote debugger")

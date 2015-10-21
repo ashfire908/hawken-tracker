@@ -179,7 +179,7 @@ def update_player_callsigns(players):
 
     # Iterate through the players
     for player in (player for player in players if player.id in callsigns and player.callsign != callsigns[player.id]):
-        player.callsign = callsigns[player.id, None]
+        player.callsign = callsigns[player.id]
         db.session.add(player)
 
 
