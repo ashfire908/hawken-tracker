@@ -103,7 +103,7 @@ def update_players(update_time, last, flags):
     filters = []
     if UpdateFlag.players not in flags and last is not None:
         filters.append(Player.last_seen > last)
-    filters.append(Player.first_seen <= update_time)
+    filters.append(Player.last_seen <= update_time)
 
     # Iterate over the players
     i = 1
@@ -191,7 +191,7 @@ def update_matches(update_time, last, flags):
     filters = []
     if UpdateFlag.matches not in flags and last is not None:
         filters.append(Match.last_seen > last)
-    filters.append(Match.first_seen <= update_time)
+    filters.append(Match.last_seen <= update_time)
 
     # Iterate over the matches
     i = 1
