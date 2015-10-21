@@ -79,14 +79,12 @@ def windowed_query(q, column, windowsize, *conditions, streaming=True, checkpoin
 
     windows = list(column_windows(q.session, column, windowsize, *conditions))
 
+    i = 0
     if checkpointer is not None:
         if checkpointer.in_progress:
             i = checkpointer.resume()
         else:
-            i = 0
             checkpointer.start()
-    else:
-        i = 0
 
     for whereclause in windows[i:]:
         if streaming:
