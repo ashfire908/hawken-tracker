@@ -65,6 +65,30 @@ default_privacy = {
     "player.player.link.players": 0
 }
 
+# Region groupings
+region_groupings = {
+    "Asia": "Asia-Oceania",
+    "Asia-Oceana": "Asia-Oceania",
+    "Asia-Oceania": "Asia-Oceania",
+    "Atlantic": "Atlantic",
+    "Australia": "Asia-Oceania",
+    "Comp-UK": "Europe",
+    "Comp-US-East": "North-America",
+    "Comp-US-West": "North-America",
+    "Europe": "Europe",
+    "Japan": "Asia-Oceania",
+    "Middle-East": "Middle-East",
+    "North-America": "North-America",
+    "Oceania": "Asia-Oceania",
+    "SaoPaulo": "South-America",
+    "Singapore": "Asia-Oceania",
+    "South-America": "South-America",
+    "UK": "Europe",
+    "US-Central": "North-America",
+    "US-East": "North-America",
+    "US-West": "North-America"
+}
+
 # Human-readable API mappings
 region_names = CaseInsensitiveDict({
     "US-East": "USA East",

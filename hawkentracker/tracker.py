@@ -9,7 +9,7 @@ from flask import current_app
 from hawkentracker.interface import get_api, api_wrapper, get_redis, format_redis_key
 from hawkentracker.models.database import db, windowed_query, Player, PlayerStats, Match, MatchPlayer, PollLog,\
     UpdateLog, Checkpointer
-from hawkentracker.mappings import ranking_fields, UpdateFlag
+from hawkentracker.mappings import ranking_fields, region_groupings, UpdateFlag
 
 logger = logging.getLogger(__name__)
 
@@ -156,18 +156,20 @@ def update_player_regions(players):
     # Iterate through the players
     for player in players:
         # Detect most common region
-        regions = db.session.query(Match.server_region, func.count(Match.server_region)).\
-                             join(MatchPlayer).\
-                             filter(MatchPlayer.player_id == player.id).\
-                             group_by(Match.server_region).\
-                             all()
+        regions_query = db.session.query(Match.server_region, func.count(Match.server_region)).\
+                                   join(MatchPlayer).\
+                                   filter(MatchPlayer.player_id == player.id).\
+                                   group_by(Match.server_region)
 
-        # Update the region
-        try:
-            player.common_region = max(regions, key=lambda x: x[1])[0]
-        except ValueError:
-            pass
-        else:
+        # Group regions
+        regions = {}
+        for region, count in regions_query.all():
+            region = region_groupings.get(region, region)
+            regions[region] = regions.get(region, 0) + count
+
+        if len(regions) > 0:
+            # Update the region
+            player.common_region = max(regions.keys(), key=lambda k: regions[k])
             db.session.add(player)
 
 
