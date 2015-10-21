@@ -98,8 +98,6 @@ def add_match_players(match, players, poll_time):
 def update_players(update_time, last, flags):
     logger.info("[Players] Updating players")
 
-    callsign = UpdateFlag.callsigns in flags
-
     # Get the list of players to update
     query = Player.query.options(joinedload(Player.stats))
     filters = []
@@ -119,7 +117,7 @@ def update_players(update_time, last, flags):
         logger.debug("[Players] Updating regions for chunk %d", i)
         update_player_regions(chunk)
 
-        if callsign:
+        if UpdateFlag.callsigns in flags:
             # Update the callsigns
             logger.debug("[Players] Updating callsigns for chunk %d", i)
             update_player_callsigns(chunk)
@@ -178,8 +176,8 @@ def update_player_callsigns(players):
     callsigns = api_wrapper(lambda: get_api().get_user_callsign([player.id for player in players], cache_skip=True))
 
     # Iterate through the players
-    for player in players:
-        player.callsign = callsigns.get(player.id, None)
+    for player in (player for player in players if player.id in callsigns and player.callsign != callsigns[player.id]):
+        player.callsign = callsigns[player.id, None]
         db.session.add(player)
 
 
