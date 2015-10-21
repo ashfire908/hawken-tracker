@@ -16,7 +16,7 @@ def message(msg):
 def main(task, verbosity, debug, update_flags):
     # Import what we need from within the app context
     from hawkentracker.models.database import db, PollLog, UpdateLog, dump_queries
-    from hawkentracker.tracker import poll_servers, update_tracker, populate_player_callsigns
+    from hawkentracker.tracker import poll_servers, update_tracker, update_callsigns
 
     try:
         # Perform the task given
@@ -54,12 +54,12 @@ def main(task, verbosity, debug, update_flags):
                 message("Last poll: {0}\nLast update: {1}".format(poll, update))
         elif task == "callsigns":
             if verbosity >= 1:
-                message("Populating tracked player callsigns.")
+                message("Updating tracked player callsigns.")
 
-            players = populate_player_callsigns()
+            players = update_callsigns()
 
             if verbosity >= 1:
-                message("Populated callsigns for {0} players.".format(players))
+                message("Updated callsigns for {0} players.".format(players))
     finally:
         if debug:
             dump_queries(task)

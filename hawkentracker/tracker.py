@@ -387,37 +387,28 @@ def update_tracker(flags):
     return players, matches, rankings
 
 
-def populate_player_callsigns():
+def update_callsigns():
     try:
-        logger.info("[Players] Populating callsigns")
+        logger.info("[Players] Updating callsigns")
 
-        query = Player.query.options(db.load_only("id", "callsign")).filter(Player.callsign.is_(None))
+        # Get list of players to update
+        query = Player.query.options(db.load_only("id", "callsign"))
 
         # Iterate over the players
         i = 1
         count = 0
-        for player in windowed_query(query, Player.id, current_app.config["TRACKER_BATCH_SIZE"]):
+        for chunk in windowed_query(query, Player.id, current_app.config["TRACKER_BATCH_SIZE"], streaming=False, checkpointer=Checkpointer("callsigns")):
             # Update the callsigns
-            player.callsign = api_wrapper(lambda: get_api().get_user_callsign(player.id, cache_skip=True))
-            db.session.add(player)
+            logger.debug("[Players] Updating callsigns for chunk %d", i)
+            update_player_callsigns(chunk)
 
-            count += 1
-
-            if count % current_app.config["TRACKER_BATCH_SIZE"] == 0:
-                # Commit the chunk
-                logger.debug("[Players] Committing chunk %d", i)
-                db.session.commit()
-
-                logger.info("[Players] Chunk %d complete", i)
-
-                i += 1
-
-        if count % current_app.config["TRACKER_BATCH_SIZE"] != 0:
             # Commit the chunk
             logger.debug("[Players] Committing chunk %d", i)
             db.session.commit()
 
             logger.info("[Players] Chunk %d complete", i)
+            i += 1
+            count += len(chunk)
     except:
         logger.error("Exception encountered, rolling back...")
         try:
