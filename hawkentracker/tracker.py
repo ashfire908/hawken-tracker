@@ -107,7 +107,10 @@ def update_players(update_time, last, flags):
 
     # Iterate over the players
     checkpointer = Checkpointer("players")
-    i = checkpointer.data.get("current_window", 0) + 1
+    if checkpointer.in_progress:
+        i = checkpointer.data.get("current_window", 0) + 1
+    else:
+        i = 1
     count = 0
     for chunk in windowed_query(query, Player.last_seen, current_app.config["TRACKER_BATCH_SIZE"], *filters, streaming=False, checkpointer=checkpointer):
         # Update the stats
@@ -399,7 +402,10 @@ def update_callsigns():
 
         # Iterate over the players
         checkpointer = Checkpointer("callsigns")
-        i = checkpointer.data.get("current_window", 0) + 1
+        if checkpointer.in_progress:
+            i = checkpointer.data.get("current_window", 0) + 1
+        else:
+            i = 1
         count = 0
         for chunk in windowed_query(query, Player.id, current_app.config["TRACKER_BATCH_SIZE"], streaming=False, checkpointer=checkpointer):
             # Update the callsigns
