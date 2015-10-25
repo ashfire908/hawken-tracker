@@ -98,7 +98,7 @@ def update_players(last, journal):
     logger.info("[Players] Updating players")
 
     # Get the list of players to update
-    query = Player.query.options(joinedload(Player.stats))
+    query = Player.query
     filters = []
     if UpdateFlag.players not in journal.flags and last is not None:
         filters.append(Player.last_seen > last)
@@ -135,13 +135,9 @@ def update_player_stats(players, update_time):
     # Update players
     for player in players:
         if player.id in stats:
-            if player.stats is None:
-                player_stats = PlayerStats(player_id=player.id)
-                player_stats.update(stats[player.id], update_time)
-                db.session.add(player_stats)
-            else:
-                player.stats.update(stats[player.id], update_time)
-                db.session.add(player.stats)
+            player_stats = PlayerStats(player_id=player.id, snapshot_taken=update_time)
+            player_stats.update(stats[player.id])
+            db.session.add(player_stats)
 
 
 def update_player_regions(players):
@@ -222,6 +218,10 @@ def update_global_rankings(last, journal):
     i = journal.stage_start(len(ranking_fields))
     db.session.commit()
 
+    # Latest snapshot filter subquery
+    ps1 = db.aliased(PlayerStats)
+    latest_snapshot = db.session.query(db.func.max(ps1.snapshot_taken)).filter(ps1.player_id == PlayerStats.player_id).subquery()
+
     # Iterate over the rankings
     for field in ranking_fields[i:]:
         key = format_redis_key("rank", field)
@@ -243,6 +243,7 @@ def update_global_rankings(last, journal):
                            join(Player).\
                            filter(target != default).\
                            filter(Player.blacklisted.is_(False)).\
+                           filter(PlayerStats.snapshot_taken == latest_snapshot).\
                            order_by(target.desc())
 
         # Setup for the loop

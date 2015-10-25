@@ -215,8 +215,8 @@ class Player(db.Model):
 class PlayerStats(db.Model):
     __tablename__ = "player_stats"
 
-    player_id = db.Column(db.String(36), db.ForeignKey("players.id"), primary_key=True)
-    last_updated = db.Column(db.DateTime, nullable=False)
+    player_id = db.Column(db.String(36), db.ForeignKey("players.id"), primary_key=True, index=True)
+    snapshot_taken = db.Column(db.DateTime, primary_key=True, index=True)
     mmr = db.Column(db.Float, index=True)
     pilot_level = db.Column(db.Integer, default=1, nullable=False, index=True)
     time_played = db.Column(db.Integer, default=0, nullable=False, index=True)
@@ -273,9 +273,9 @@ class PlayerStats(db.Model):
     cooptdm_win_loss = db.Column(db.Float, index=True)
 
     def __repr__(self):
-        return "<PlayerStats(player_id='{0}', mmr={1}, pilot_level={2}, time_played={3})>".format(self.player_id, self.mmr, self.pilot_level, self.time_played)
+        return "<PlayerStats(player_id='{0}', snapshot_taken={1})>".format(self.player_id, self.snapshot_taken)
 
-    def update(self, stats, update_time):
+    def update(self, stats):
         # Filters
         default_mmr = (0.0, 1250.0, 1500.0)
         min_time = 36000  # 1 hour
@@ -385,8 +385,6 @@ class PlayerStats(db.Model):
             # All
             if self.matches >= min_matches and self.wins > 0 and self.losses + self.abandons > 0:
                 self.win_loss = self.wins / (self.losses + self.abandons)
-
-        self.last_updated = update_time
 
 
 class Match(db.Model):
