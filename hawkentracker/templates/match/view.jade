@@ -41,18 +41,18 @@ block content
         dd= match.first_seen
         dt Last Seen
         dd= match.last_seen
-        if match.average_mmr != False
+        if match.mmr_avg != False
             dt Average MMR
-            if match.average_mmr == None
+            if match.mmr_avg == None
                 dd [Pending Calculation]
             else
                 dd= match.average_mmr
-        if match.average_level != False
+        if match.pilot_level_avg != False
             dt Average Level
-            if match.average_level == None
+            if match.pilot_level_avg == None
                 dd [Pending Calculation]
             else
-                dd= match.average_level
+                dd= match.pilot_level_avg
 
     if players:
         .page-header

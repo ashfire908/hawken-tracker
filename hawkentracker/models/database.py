@@ -2,6 +2,7 @@
 # Hawken Tracker - Database Models
 
 import logging
+import statistics
 from datetime import datetime
 
 from passlib.context import CryptContext
@@ -397,10 +398,18 @@ class Match(db.Model):
     server_gametype = db.Column(db.String, nullable=False)
     server_map = db.Column(db.String, nullable=False)
     server_version = db.Column(db.String, nullable=False)
+    server_matchmaking = db.Column(db.Boolean)
+    server_tournament = db.Column(db.Boolean)
+    server_password_protected = db.Column(db.Boolean)
+    server_mmr_ignored = db.Column(db.Boolean)
     first_seen = db.Column(db.DateTime, nullable=False)
     last_seen = db.Column(db.DateTime, nullable=False)
-    average_mmr = db.Column(db.Float)
-    average_level = db.Column(db.Float)
+    last_stats_update = db.Column(db.DateTime)
+    pilot_level_avg = db.Column(db.Float)
+    mmr_avg = db.Column(db.Float)
+    mmr_min = db.Column(db.Float)
+    mmr_max = db.Column(db.Float)
+    mmr_stddev = db.Column(db.Float)
 
     players = db.relationship("MatchPlayer", order_by="MatchPlayer.last_seen", backref=db.backref("match", uselist=False))
 
@@ -414,9 +423,27 @@ class Match(db.Model):
         self.server_map = server["Map"]
         self.server_version = server["GameVersion"]
 
+        self.server_matchmaking = server["IsMatchmakingVisible"]
+        self.server_tournament = server["DeveloperData"].get("bTournament", "false").lower() == "true"
+        self.server_password_protected = len(server["DeveloperData"].get("PasswordHash", "")) > 0
+        self.server_mmr_ignored = server["DeveloperData"].get("bIgnoreMMR", "FALSE").lower() == "true"
+
         if self.first_seen is None:
             self.first_seen = poll_time
         self.last_seen = poll_time
+
+    def calculate_stats(self, mmrs, pilot_levels, update_time):
+        # Update stats
+        if len(mmrs) > 0:
+            self.mmr_avg = statistics.mean(mmrs)
+            self.mmr_min = min(mmrs)
+            self.mmr_max = max(mmrs)
+            if len(mmrs) > 1:
+                self.mmr_stddev = statistics.stdev(mmrs)
+        if len(pilot_levels) > 0:
+            self.pilot_level_avg = statistics.mean(pilot_levels)
+
+        self.last_stats_update = update_time
 
 
 class MatchPlayer(db.Model):

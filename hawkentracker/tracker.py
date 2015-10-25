@@ -195,28 +195,22 @@ def update_matches(last, journal):
                                    journal=journal,
                                    logger=logger,
                                    logger_prefix="[Matches]"):
-        # Update the averages
-        update_match_averages(match)
+        # Update the stats
+        update_match_stats(match, journal.start)
 
         journal.matches_updated += 1
 
 
-def update_match_averages(match):
+def update_match_stats(match, update_time):
     # Get the player stats for the match
     stats = db.session.query(PlayerStats.mmr, PlayerStats.pilot_level).\
                        join(MatchPlayer, PlayerStats.player_id == MatchPlayer.player_id).\
                        filter(MatchPlayer.match_id == match.id).all()
 
     if len(stats) > 0:
-        # Get the player mmrs and levels
+        # Unpack and update match stats
         mmrs, levels = zip(*stats)
-        mmrs = [mmr for mmr in mmrs if mmr is not None]
-
-        # Update stats
-        if len(mmrs) > 0:
-            match.average_mmr = sum(mmrs) / len(mmrs)
-        if len(levels) > 0:
-            match.average_level = sum(levels) / len(levels)
+        match.calculate_stats([mmr for mmr in mmrs if mmr is not None], levels, update_time)
         db.session.add(match)
 
 

@@ -47,16 +47,16 @@ def view(id):
             "server_version": match.server_version,
             "first_seen": match.first_seen.strftime("%Y-%m-%d %H:%M"),
             "last_seen": match.last_seen.strftime("%Y-%m-%d %H:%M"),
-            "average_mmr": False,
-            "average_level": False
+            "mmr_avg": False,
+            "pilot_level_avg": False
         }
     }
 
     # Stats
     if permissions_view.match.match(match.id).stats:
         context["match"].update({
-            "average_mmr": "{0:.2f}".format(match.average_mmr),
-            "average_level": "{0:.1f}".format(match.average_level)
+            "mmr_avg": "{0:.2f}".format(match.mmr_avg),
+            "pilot_level_avg": "{0:.1f}".format(match.pilot_level_avg)
         })
 
     # Players
