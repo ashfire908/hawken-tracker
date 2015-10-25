@@ -23,13 +23,13 @@ def update_seen_players(players, poll_time):
 
     # Collect existing player data
     existing_players = db.session.query(Player.id, Player.callsign).filter(Player.id.in_(players)).all()
-    new_players = list(set(players).difference((id for id, _ in existing_players)))
+    new_players = list(set(players).difference((guid for guid, _ in existing_players)))
 
     # Update existing players
     logger.debug("[Players] Updating existing players")
     Player.query.filter(Player.id.in_(players)).update({"last_seen": poll_time}, synchronize_session=False)
-    for id, new_callsign in ((id, callsigns[id]) for id, callsign in existing_players if id in callsigns and callsign != callsigns[id]):
-        Player.query.filter(Player.id == id).update({"callsign": new_callsign}, synchronize_session=False)
+    for guid, new_callsign in ((guid, callsigns[guid]) for guid, callsign in existing_players if guid in callsigns and callsign != callsigns[guid]):
+        Player.query.filter(Player.id == guid).update({"callsign": new_callsign}, synchronize_session=False)
 
     if len(new_players) > 0:
         # Add new players
@@ -60,14 +60,14 @@ def update_seen_matches(matches, poll_time):
 
     # Add new matches
     logger.debug("[Matches] Adding new matches")
-    for id in (id for id in matches.keys() if id not in found):
-        match = Match(id=id)
-        match.update(matches[id], poll_time)
+    for match_id in (match_id for match_id in matches.keys() if match_id not in found):
+        match = Match(id=match_id)
+        match.update(matches[match.id], poll_time)
         db.session.add(match)
 
         # Add match players
-        if len(matches[id]["Users"]) > 0:
-            add_match_players(id, matches[id]["Users"], poll_time)
+        if len(matches[match.id]["Users"]) > 0:
+            add_match_players(id, matches[match.id]["Users"], poll_time)
 
     return len(found), len(matches) - len(found)
 
@@ -252,12 +252,12 @@ def update_global_rankings():
     for field in ranking_fields:
         key = format_redis_key("rank", field)
 
+        logger.debug("[Rankings] Updating global rankings for %s", field)
+
         # Delete old rankings
-        logger.debug("[Rankings] Dropping global rankings for %s", field)
         redis.delete(key)
 
         # Get the target field and it's default
-        logger.debug("[Rankings] Updating global rankings for %s", field)
         target = getattr(PlayerStats, field)
         if target.default is None:
             default = target.default
@@ -268,7 +268,7 @@ def update_global_rankings():
         query = db.session.query(PlayerStats.player_id, target).\
                            join(Player).\
                            filter(target != default).\
-                           filter(Player.blacklisted == False).\
+                           filter(Player.blacklisted.is_(False)).\
                            order_by(target.desc())
 
         # Setup for the loop
