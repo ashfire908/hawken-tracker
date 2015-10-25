@@ -49,11 +49,8 @@ def column_windows(session, column, windowsize, begin=None, end=None):
 
     Requires a database that supports window functions,
     i.e. Postgresql, SQL Server, Oracle."""
-    def int_for_range(start_id, end_id):
-        if end_id:
-            return db.and_(column >= start_id, column < end_id)
-        else:
-            return column >= start_id
+    def window_size(window):
+        return session.query(db.func.count(column)).filter(window).one()[0]
 
     # Base query
     q = session.query(column, db.func.row_number().over(order_by=column).label("rownum")).from_self(column)
@@ -77,13 +74,23 @@ def column_windows(session, column, windowsize, begin=None, end=None):
     if end is not None:
         intervals.append(end)
 
+    # Generate windows
+    windows = []
     while intervals:
         start = intervals.pop(0)
         if len(intervals) > 0:
-            yield int_for_range(start, intervals[0])
+            windows.append(db.and_(column >= start, column < intervals[0]))
         elif end is None:
             # Only emit if there is no ending point (otherwise the end of the range is not constrained)
-            yield int_for_range(start, None)
+            windows.append(column >= start)
+
+    # Remove empty windows
+    if begin is not None and len(windows) >= 1 and window_size(windows[0]) == 0:
+        windows.pop(0)
+    if end is not None and len(windows) >= 1 and window_size(windows[-1]) == 0:
+        windows.pop()
+
+    return windows
 
 
 def windowed_query(q, column, windowsize, begin=None, end=None, streaming=False, chunk_commit=True, journal=None, logger=None, logger_prefix=None):
@@ -97,10 +104,14 @@ def windowed_query(q, column, windowsize, begin=None, end=None, streaming=False,
     if logger is not None:
         logger.debug(format_log("Generating windows..."))
 
-    windows = list(column_windows(q.session, column, windowsize, begin=begin, end=end))
+    windows = column_windows(q.session, column, windowsize, begin=begin, end=end)
     total_windows = len(windows)
 
-    if logger is not None:
+    if total_windows == 0:
+        if logger is not None:
+            logger.debug(format_log("No windows found."))
+        return
+    elif logger is not None:
         logger.debug(format_log("%d total windows, iterating..."), total_windows)
 
     i = 0
