@@ -16,7 +16,7 @@ def message(msg):
 def main(task, verbosity, debug, update_flags):
     # Import what we need from within the app context
     from hawkentracker.models.database import db, PollLog, UpdateLog, dump_queries
-    from hawkentracker.tracker import poll_servers, update_tracker, update_callsigns
+    from hawkentracker.tracker import poll_servers, update_tracker
 
     try:
         # Perform the task given
@@ -52,14 +52,6 @@ def main(task, verbosity, debug, update_flags):
                 message("{0} {1}".format(poll_time, update_time))
             else:
                 message("Last poll: {0}\nLast update: {1}".format(poll, update))
-        elif task == "callsigns":
-            if verbosity >= 1:
-                message("Updating tracked player callsigns.")
-
-            players = update_callsigns()
-
-            if verbosity >= 1:
-                message("Updated callsigns for {0} players.".format(players))
     finally:
         if debug:
             dump_queries(task)
@@ -68,7 +60,7 @@ def main(task, verbosity, debug, update_flags):
 if __name__ == "__main__":
     # Parse args
     parser = argparse.ArgumentParser(description="Tool for managing the tracker (poll servers, update tracker, etc).")
-    parser.add_argument("task", choices=("setup", "poll", "update", "last", "callsigns"), help="specifies the task to perform - 'setup' creates the db, 'poll' updates the matches and player info, 'update' updates the player stats, 'last' gets the last poll time, and 'callsigns' updates player callsigns")
+    parser.add_argument("task", choices=("setup", "poll", "update", "last"), help="specifies the task to perform - 'setup' creates the db, 'poll' updates the matches and player info, 'update' updates the player stats, and 'last' gets the last poll time")
     parser.add_argument("--verbose", "-v", action="count", default=0, help="increase verbosity and log level")
     parser.add_argument("--debug", action="store_true", default=False, help="enable debug mode (forced to off by default)")
     parser.add_argument("--remote-debug", nargs=2, metavar=('host', 'port'), default=False, help="attach to a remote debugger")

@@ -393,44 +393,6 @@ def update_tracker(flags):
     return players, matches, rankings
 
 
-def update_callsigns():
-    try:
-        logger.info("[Players] Updating callsigns")
-
-        # Get list of players to update
-        query = Player.query.options(db.load_only("id", "callsign"))
-
-        # Iterate over the players
-        checkpointer = Checkpointer("callsigns")
-        if checkpointer.in_progress:
-            i = checkpointer.data.get("current_window", 0) + 1
-        else:
-            i = 1
-        count = 0
-        for chunk in windowed_query(query, Player.id, current_app.config["TRACKER_BATCH_SIZE"], streaming=False, checkpointer=checkpointer):
-            # Update the callsigns
-            logger.debug("[Players] Updating callsigns for chunk %d", i)
-            update_player_callsigns(chunk)
-
-            # Commit the chunk
-            logger.debug("[Players] Committing chunk %d", i)
-            db.session.commit()
-
-            logger.info("[Players] Chunk %d complete", i)
-            i += 1
-            count += len(chunk)
-    except:
-        logger.error("Exception encountered, rolling back...")
-        try:
-            db.session.rollback()
-        except:
-            logger.critical("Failed to roll back session!")
-            raise
-        raise
-
-    return count
-
-
 def decode_rank(rank):
     if rank is None:
         return None
