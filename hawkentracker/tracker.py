@@ -55,8 +55,7 @@ def update_seen_matches(matches, poll_time):
         db.session.add(match)
 
         # Update match players
-        if len(matches[match.id]["Users"]) > 0:
-            update_match_players(match.id, matches[match.id]["Users"], poll_time)
+        update_match_players(match, matches[match.id]["Users"], poll_time)
 
     # Add new matches
     logger.debug("[Matches] Adding new matches")
@@ -66,31 +65,31 @@ def update_seen_matches(matches, poll_time):
         db.session.add(match)
 
         # Add match players
-        if len(matches[match.id]["Users"]) > 0:
-            add_match_players(id, matches[match.id]["Users"], poll_time)
+        add_match_players(match, matches[match.id]["Users"], poll_time)
 
     return len(found), len(matches) - len(found)
 
 
 def update_match_players(match, players, poll_time):
-    # Update existing players
-    found = []
-    for matchplayer in MatchPlayer.query.filter(MatchPlayer.match_id == match, MatchPlayer.player_id.in_(players)):
-        found.append(matchplayer.player_id)
-        matchplayer.update(poll_time)
-        db.session.add(matchplayer)
+    if len(players) > 0:
+        # Update existing players
+        found = []
+        for matchplayer in MatchPlayer.query.filter(MatchPlayer.match_id == match.id, MatchPlayer.player_id.in_(players)):
+            found.append(matchplayer.player_id)
+            matchplayer.update(poll_time)
+            db.session.add(matchplayer)
 
-    # Add new players
-    for player in (player for player in players if player not in found):
-        matchplayer = MatchPlayer(match_id=match, player_id=player)
-        matchplayer.update(poll_time)
-        db.session.add(matchplayer)
+        # Add new players
+        for player in (player for player in players if player not in found):
+            matchplayer = MatchPlayer(match_id=match.id, player_id=player)
+            matchplayer.update(poll_time)
+            db.session.add(matchplayer)
 
 
 def add_match_players(match, players, poll_time):
     # Add new players
     for player in players:
-        matchplayer = MatchPlayer(match_id=match, player_id=player)
+        matchplayer = MatchPlayer(match_id=match.id, player_id=player)
         matchplayer.update(poll_time)
         db.session.add(matchplayer)
 
