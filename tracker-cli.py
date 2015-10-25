@@ -90,10 +90,10 @@ if __name__ == "__main__":
     parser.add_argument("--verbose", "-v", action="count", default=0, help="increase verbosity and log level")
     parser.add_argument("--debug", action="store_true", default=False, help="enable debug mode (forced to off by default)")
     parser.add_argument("--remote-debug", nargs=2, metavar=('host', 'port'), default=False, help="attach to a remote debugger")
-    parser.add_argument("--update-players", action="store_true", default=False, help="force updating all players")
-    parser.add_argument("--update-matches", action="store_true", default=False, help="force updating all matches")
-    parser.add_argument("--update-callsigns", action="store_true", default=False, help="force updating all callsigns")
-    parser.add_argument("--resume", action="store_true", default=False, help="resumes a failed update")
+    parser.add_argument("--all-players", action="store_true", default=False, help="force updating all players")
+    parser.add_argument("--all-matches", action="store_true", default=False, help="force updating all matches")
+    parser.add_argument("--update-callsigns", action="store_true", default=False, help="update callsigns during update")
+    parser.add_argument("--resume", action="store_true", default=False, help="resumes failed update")
 
     args = parser.parse_args()
 
@@ -119,12 +119,12 @@ if __name__ == "__main__":
     parameters["DEBUG"] = args.debug
 
     update_flags = []
-    if args.update_players:
-        update_flags.append(UpdateFlag.players)
-    if args.update_matches:
-        update_flags.append(UpdateFlag.matches)
+    if args.all_players:
+        update_flags.append(UpdateFlag.all_players)
+    if args.all_matches:
+        update_flags.append(UpdateFlag.all_matches)
     if args.update_callsigns:
-        update_flags.append(UpdateFlag.callsigns)
+        update_flags.append(UpdateFlag.update_callsigns)
 
     # Create app and enter context
     app = create_app(config_parameters=parameters)

@@ -97,7 +97,7 @@ def add_match_players(match, players, poll_time):
 def update_players(last, journal):
     logger.info("[Players] Updating players")
 
-    if UpdateFlag.players in journal.flags:
+    if UpdateFlag.all_players in journal.flags:
         last = None
 
     # Iterate over the players
@@ -115,7 +115,7 @@ def update_players(last, journal):
         logger.debug("[Players] Updating regions for chunk %d", i + 1)
         update_player_regions(chunk)
 
-        if UpdateFlag.callsigns in journal.flags:
+        if UpdateFlag.update_callsigns in journal.flags:
             # Update the callsigns
             logger.debug("[Players] Updating callsigns for chunk %d", i + 1)
             journal.callsigns_updated += update_player_callsigns(chunk)
@@ -176,7 +176,7 @@ def update_player_callsigns(players):
 def update_matches(last, journal):
     logger.info("[Matches] Updating matches")
 
-    if UpdateFlag.matches in journal.flags:
+    if UpdateFlag.all_matches in journal.flags:
         last = None
 
     # Iterate over the matches
