@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
 # Hawken Tracker - Database Models
 
-import json
 import logging
-import os
 from datetime import datetime
 
 from passlib.context import CryptContext
 from sqlalchemy import event
+from sqlalchemy.dialects import postgres
 from flask import current_app
 from flask.ext.sqlalchemy import SQLAlchemy, get_debug_queries
-from hawkentracker.mappings import LinkStatus, CoreRole
+from hawkentracker.mappings import LinkStatus, CoreRole, UpdateStatus, UpdateStage, UpdateFlag
 from hawkentracker.util import email_re, random_hex
 
 logger = logging.getLogger(__name__)
@@ -74,91 +73,72 @@ def column_windows(session, column, windowsize, *conditions):
         yield int_for_range(start, end)
 
 
-def windowed_query(q, column, windowsize, *conditions, streaming=True, checkpointer=None):
+def windowed_query(q, column, windowsize, *conditions, streaming=False, chunk_commit=True, journal=None, logger=None, logger_prefix=None):
     """"Break a Query into windows on a given column."""
 
+    def format_log(msg):
+        if logger_prefix is not None:
+            return logger_prefix + " " + msg
+        return msg
+
+    if logger is not None:
+        logger.debug(format_log("Generating windows..."))
+
     windows = list(column_windows(q.session, column, windowsize, *conditions))
+    total_windows = len(windows)
+
+    if logger is not None:
+        logger.debug(format_log("%d total windows, iterating..."), total_windows)
 
     i = 0
-    if checkpointer is not None:
-        if checkpointer.in_progress:
-            i = checkpointer.resume()
-        else:
-            checkpointer.start()
+    if journal is not None:
+        i = journal.stage_start(total_windows)
+        db.session.commit()
 
     for whereclause in windows[i:]:
         if streaming:
             for row in q.filter(whereclause).order_by(column):
-                yield row
+                yield i, row
         else:
-            yield q.filter(whereclause).order_by(column).all()
+            yield i, q.filter(whereclause).order_by(column).all()
 
-        if checkpointer is not None:
-            checkpointer.checkpoint(i)
-
+        # Update now so checkpoint will resume correctly, and logging chunk name starts at 1
         i += 1
 
-    if checkpointer is not None:
-        checkpointer.end()
+        if journal is not None:
+            journal.stage_checkpoint(i)
 
+        if chunk_commit:
+            if logger is not None:
+                logger.debug(format_log("Committing chunk %d"), i)
+            db.session.commit()
 
-class Checkpointer:
-    def __init__(self, task):
-        self.task = task
-
-        # Prepare folder
-        path = os.path.join(current_app.instance_path, "checkpointer")
-        if not os.path.isdir(path):
-            os.makedirs(path)
-        self.filename = os.path.join(path, "{0}.json".format(self.task))
-
-        # Initial load
-        self.data = None
-        self._load()
-
-    def _load(self):
-        try:
-            with open(self.filename, "r") as f:
-                self.data = json.load(f)
-        except FileNotFoundError:
-            self.data = None
-
-    def _save(self):
-        with open(self.filename, "w") as f:
-            json.dump(self.data, f)
-
-    def _clear(self):
-        os.remove(self.filename)
-        self.data = None
-
-    def start(self):
-        self.data = {
-            "current_window": 0
-        }
-
-        self._save()
-
-    def resume(self):
-        logger.info("Resuming %s from checkpoint %d", self.task, self.data["current_window"] + 1)
-        return self.data["current_window"]
-
-    def checkpoint(self, i):
-        self.data["current_window"] = i
-        self._save()
-
-        logger.debug("Checkpoint %d reached for %s", i + 1, self.task)
-
-    def end(self):
-        self._clear()
-
-    @property
-    def in_progress(self):
-        return self.data is not None
+        if logger is not None:
+            logger.info(format_log("Chunk %d/%d complete"), i, total_windows)
 
 
 class NativeIntEnum(db.TypeDecorator):
     """Converts between a native enum and a database integer"""
     impl = db.Integer
+
+    def __init__(self, enum):
+        self.enum = enum
+        super().__init__()
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        return value.value
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        return self.enum(value)
+
+
+class NativeStringEnum(db.TypeDecorator):
+    """Converts between a native enum and a database string"""
+    impl = db.String
 
     def __init__(self, enum):
         self.enum = enum
@@ -737,27 +717,74 @@ class PollLog(db.Model):
         db.session.add(poll)
 
 
-class UpdateLog(db.Model):
+class UpdateJournal(db.Model):
     __tablename__ = "updates"
 
-    time = db.Column(db.DateTime, primary_key=True)
-    success = db.Column(db.Boolean, index=True, nullable=False)
-    time_taken = db.Column(db.Float, nullable=False)
-    players_updated = db.Column(db.Integer, nullable=False)
-    matches_updated = db.Column(db.Integer, nullable=False)
-    rankings_updated = db.Column(db.Boolean, nullable=False)
+    start = db.Column(db.DateTime, primary_key=True)
+    end = db.Column(db.DateTime)
+    time_elapsed = db.Column(db.Float, default=0, nullable=False)
+    status = db.Column(NativeIntEnum(UpdateStatus), default=UpdateStatus.not_started, index=True, nullable=False)
+    stage = db.Column(NativeIntEnum(UpdateStage), default=UpdateStage.not_started, nullable=False)
+    current_step = db.Column(db.Integer, default=0)
+    total_steps = db.Column(db.Integer, default=0)
+    flags = db.Column(postgres.ARRAY(NativeStringEnum(UpdateFlag)), default=[], nullable=False)
+    players_updated = db.Column(db.Integer, default=0, nullable=False)
+    matches_updated = db.Column(db.Integer, default=0, nullable=False)
+    callsigns_updated = db.Column(db.Integer, default=0, nullable=False)
+    global_rankings_updated = db.Column(db.Boolean, default=False, nullable=False)
+
+    def stage_start(self, total):
+        if self.current_step is None:
+            self.current_step = 0
+        self.total_steps = total
+        db.session.add(self)
+        return self.current_step
+
+    def stage_progress(self):
+        if self.current_step is None or self.total_steps is None:
+            return None
+
+        if self.total_steps == 0:
+            return 0
+
+        return self.current_step / self.total_steps
+
+    def stage_checkpoint(self, current):
+        self.current_step = current
+        db.session.add(self)
+
+    def stage_next(self, next_stage):
+        self.current_step = None
+        self.total_steps = None
+        self.stage = next_stage
+        db.session.add(self)
+
+    def fail(self, update_start):
+        now = datetime.now()
+        self.time_elapsed += (now - update_start).total_seconds()
+        self.end = now
+        self.status = UpdateStatus.failed
+        db.session.add(self)
+
+    def complete(self, update_start):
+        now = datetime.now()
+        self.time_elapsed += (now - update_start).total_seconds()
+        self.end = now
+        self.status = UpdateStatus.complete
+        self.current_step = None
+        self.total_steps = None
+        db.session.add(self)
 
     def __repr__(self):
-        return "<UpdateLog(time={0}, success={1}, time_taken={2})>".format(self.time, self.success, self.time_taken)
+        return "<UpdateLog(start={0}, status={1}, stage={2})>".format(self.start, self.status, self.stage)
 
     @staticmethod
     def last():
-        last = db.session.query(UpdateLog.time).filter(UpdateLog.success.is_(True)).order_by(UpdateLog.time.desc()).first()
+        return db.session.query(UpdateJournal).order_by(UpdateJournal.start.desc()).first()
+
+    @staticmethod
+    def last_completed():
+        last = db.session.query(UpdateJournal.start).filter(UpdateJournal.status == UpdateStatus.complete).order_by(UpdateJournal.start.desc()).first()
         if last is None:
             return None
         return last[0]
-
-    @staticmethod
-    def record(success, start, end, players, matches, rankings):
-        update = UpdateLog(time=start, success=success, time_taken=(end - start).total_seconds(), players_updated=players, matches_updated=matches, rankings_updated=rankings)
-        db.session.add(update)

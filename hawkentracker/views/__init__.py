@@ -5,12 +5,12 @@ from datetime import datetime
 
 from flask import current_app
 from hawkentracker.helpers import format_dhms
-from hawkentracker.models.database import UpdateLog
+from hawkentracker.models.database import UpdateJournal
 
 
 @current_app.context_processor
 def load_globals():
-    update = UpdateLog.last()
+    update = UpdateJournal.last_completed()
 
     if update is None:
         update = False

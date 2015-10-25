@@ -5,7 +5,7 @@
 import sys
 import argparse
 from hawkentracker import create_app
-from hawkentracker.mappings import UpdateFlag
+from hawkentracker.mappings import UpdateFlag, UpdateStatus
 
 
 def message(msg):
@@ -13,9 +13,11 @@ def message(msg):
     sys.stdout.flush()
 
 
-def main(task, verbosity, debug, update_flags):
+def main(task, verbosity, debug, update_flags, resume):
+    error = False
+
     # Import what we need from within the app context
-    from hawkentracker.models.database import db, PollLog, UpdateLog, dump_queries
+    from hawkentracker.models.database import db, PollLog, UpdateJournal, dump_queries
     from hawkentracker.tracker import poll_servers, update_tracker
 
     try:
@@ -38,35 +40,56 @@ def main(task, verbosity, debug, update_flags):
         elif task == "update":
             if verbosity >= 1:
                 message("Updating rankings and cached player/match data.")
-            players, matches, rankings = update_tracker(update_flags)
+            journal = update_tracker(update_flags, resume=resume)
 
-            if verbosity >= 1:
-                message("Updated {0} players and {1} matches.".format(players, matches))
-        elif task == "last":
+            if journal.status == UpdateStatus.complete:
+                if verbosity >= 1:
+                    message("Updated {0} players and {1} matches.".format(journal.players_updated, journal.matches_updated))
+            elif journal.status == UpdateStatus.failed:
+                if verbosity >= 1:
+                    message("Update failed! Please see traceback for more information. Rerun update with resume to retry.")
+            else:
+                message("Update already in progress!")
+                message("Started at {0}, current stage: {1} ({2}% complete)".format(journal.start, journal.stage, journal.stage_progress()))
+
+            if journal.status != UpdateStatus.complete:
+                error = True
+
+        elif task == "status":
             poll = PollLog.last()
-            update = UpdateLog.last()
+            update = UpdateJournal.last()
+            successful_update = UpdateJournal.last_completed()
 
             if verbosity == 0:
                 poll_time = poll.isoformat() if poll is not None else None
-                update_time = update.isoformat() if update is not None else None
+                update_time = successful_update.isoformat() if successful_update is not None else None
                 message("{0} {1}".format(poll_time, update_time))
             else:
-                message("Last poll: {0}\nLast update: {1}".format(poll, update))
+                message("Last poll: {0}".format(poll))
+                message("Last successful update: {0}".format(successful_update))
+                if update.status != UpdateStatus.complete:
+                    message("Last update was not successful.")
+                    message("Started at: {0} (ran for {1} seconds)".format(update.start, update.time_elapsed))
+                    message("Status: {0} Stage: {1} ({2}% complete)".format(update.status, update.stage, update.stage_progress()))
     finally:
         if debug:
             dump_queries(task)
+
+    if error:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
     # Parse args
     parser = argparse.ArgumentParser(description="Tool for managing the tracker (poll servers, update tracker, etc).")
-    parser.add_argument("task", choices=("setup", "poll", "update", "last"), help="specifies the task to perform - 'setup' creates the db, 'poll' updates the matches and player info, 'update' updates the player stats, and 'last' gets the last poll time")
+    parser.add_argument("task", choices=("setup", "poll", "update", "status"), help="specifies the task to perform - 'setup' creates the db, 'poll' updates the matches and player info, 'update' updates the player stats, and 'status' shows the poll and update status")
     parser.add_argument("--verbose", "-v", action="count", default=0, help="increase verbosity and log level")
     parser.add_argument("--debug", action="store_true", default=False, help="enable debug mode (forced to off by default)")
     parser.add_argument("--remote-debug", nargs=2, metavar=('host', 'port'), default=False, help="attach to a remote debugger")
     parser.add_argument("--update-players", action="store_true", default=False, help="force updating all players")
     parser.add_argument("--update-matches", action="store_true", default=False, help="force updating all matches")
     parser.add_argument("--update-callsigns", action="store_true", default=False, help="force updating all callsigns")
+    parser.add_argument("--resume", action="store_true", default=False, help="resumes a failed update")
 
     args = parser.parse_args()
 
@@ -102,4 +125,4 @@ if __name__ == "__main__":
     # Create app and enter context
     app = create_app(config_parameters=parameters)
     with app.app_context():
-        main(args.task, verbosity=args.verbose, debug=args.debug, update_flags=update_flags)
+        main(args.task, verbosity=args.verbose, debug=args.debug, update_flags=update_flags, resume=args.resume)

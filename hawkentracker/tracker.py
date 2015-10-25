@@ -8,8 +8,8 @@ from sqlalchemy.orm import joinedload, contains_eager
 from flask import current_app
 from hawkentracker.interface import get_api, api_wrapper, get_redis, format_redis_key
 from hawkentracker.models.database import db, windowed_query, Player, PlayerStats, Match, MatchPlayer, PollLog,\
-    UpdateLog, Checkpointer
-from hawkentracker.mappings import ranking_fields, region_groupings, UpdateFlag
+    UpdateJournal
+from hawkentracker.mappings import ranking_fields, region_groupings, UpdateFlag, UpdateStatus, UpdateStage
 
 logger = logging.getLogger(__name__)
 
@@ -95,46 +95,35 @@ def add_match_players(match, players, poll_time):
         db.session.add(matchplayer)
 
 
-def update_players(update_time, last, flags):
+def update_players(last, journal):
     logger.info("[Players] Updating players")
 
     # Get the list of players to update
     query = Player.query.options(joinedload(Player.stats))
     filters = []
-    if UpdateFlag.players not in flags and last is not None:
+    if UpdateFlag.players not in journal.flags and last is not None:
         filters.append(Player.last_seen > last)
-    filters.append(Player.last_seen <= update_time)
+    filters.append(Player.last_seen <= journal.start)
 
     # Iterate over the players
-    checkpointer = Checkpointer("players")
-    if checkpointer.in_progress:
-        i = checkpointer.data.get("current_window", 0) + 1
-    else:
-        i = 1
-    count = 0
-    for chunk in windowed_query(query, Player.last_seen, current_app.config["TRACKER_BATCH_SIZE"], *filters, streaming=False, checkpointer=checkpointer):
+    for i, chunk in windowed_query(query, Player.last_seen, current_app.config["TRACKER_BATCH_SIZE"], *filters,
+                                   journal=journal,
+                                   logger=logger,
+                                   logger_prefix="[Players]"):
         # Update the stats
-        logger.debug("[Players] Updating stats for chunk %d", i)
-        update_player_stats(chunk, update_time)
+        logger.debug("[Players] Updating stats for chunk %d", i + 1)
+        update_player_stats(chunk, journal.start)
 
         # Update the region
-        logger.debug("[Players] Updating regions for chunk %d", i)
+        logger.debug("[Players] Updating regions for chunk %d", i + 1)
         update_player_regions(chunk)
 
-        if UpdateFlag.callsigns in flags:
+        if UpdateFlag.callsigns in journal.flags:
             # Update the callsigns
-            logger.debug("[Players] Updating callsigns for chunk %d", i)
-            update_player_callsigns(chunk)
+            logger.debug("[Players] Updating callsigns for chunk %d", i + 1)
+            journal.callsigns_updated += update_player_callsigns(chunk)
 
-        # Commit the chunk
-        logger.debug("[Players] Committing chunk %d", i)
-        db.session.commit()
-
-        logger.info("[Players] Chunk %d complete", i)
-        i += 1
-        count += len(chunk)
-
-    return count
+        journal.players_updated += len(chunk)
 
 
 def update_player_stats(players, update_time):
@@ -182,47 +171,35 @@ def update_player_callsigns(players):
     callsigns = api_wrapper(lambda: get_api().get_user_callsign([player.id for player in players], cache_skip=True))
 
     # Iterate through the players
+    count = 0
     for player in (player for player in players if player.id in callsigns and player.callsign != callsigns[player.id]):
         player.callsign = callsigns[player.id]
         db.session.add(player)
+        count += 1
+
+    return count
 
 
-def update_matches(update_time, last, flags):
+def update_matches(last, journal):
     logger.info("[Matches] Updating matches")
 
     # Get the list of matches to update
     query = Match.query
     filters = []
-    if UpdateFlag.matches not in flags and last is not None:
+    if UpdateFlag.matches not in journal.flags and last is not None:
         filters.append(Match.last_seen > last)
-    filters.append(Match.last_seen <= update_time)
+    filters.append(Match.last_seen <= journal.start)
 
     # Iterate over the matches
-    i = 1
-    count = 0
-    for match in windowed_query(query, Match.last_seen, current_app.config["TRACKER_BATCH_SIZE"], *filters):
+    for _, match in windowed_query(query, Match.last_seen, current_app.config["TRACKER_BATCH_SIZE"], *filters,
+                                   streaming=True,
+                                   journal=journal,
+                                   logger=logger,
+                                   logger_prefix="[Matches]"):
         # Update the averages
         update_match_averages(match)
 
-        count += 1
-
-        if count % current_app.config["TRACKER_BATCH_SIZE"] == 0:
-            # Commit the chunk
-            logger.debug("[Matches] Committing chunk %d", i)
-            db.session.commit()
-
-            logger.info("[Matches] Chunk %d complete", i)
-
-            i += 1
-
-    if count % current_app.config["TRACKER_BATCH_SIZE"] != 0:
-        # Commit the chunk
-        logger.debug("[Matches] Committing chunk %d", i)
-        db.session.commit()
-
-        logger.info("[Matches] Chunk %d complete", i)
-
-    return count
+        journal.matches_updated += 1
 
 
 def update_match_averages(match):
@@ -244,12 +221,16 @@ def update_match_averages(match):
         db.session.add(match)
 
 
-def update_global_rankings():
+def update_global_rankings(last, journal):
     logger.info("[Rankings] Updating global rankings")
     redis = get_redis()
 
+    # Prep journal
+    i = journal.stage_start(len(ranking_fields))
+    db.session.commit()
+
     # Iterate over the rankings
-    for field in ranking_fields:
+    for field in ranking_fields[i:]:
         key = format_redis_key("rank", field)
 
         logger.debug("[Rankings] Updating global rankings for %s", field)
@@ -294,6 +275,13 @@ def update_global_rankings():
         # Set the total number of ranked players
         batch["total"] = index
         redis.hmset(key, batch)
+
+        i += 1
+        journal.stage_checkpoint(i)
+        db.session.commit()
+
+    journal.global_rankings_updated = True
+    db.session.commit()
 
 
 def poll_servers():
@@ -353,44 +341,78 @@ def poll_servers():
     return players_count, matches_count
 
 
-def update_tracker(flags):
-    success = False
-    players = 0
-    matches = 0
-    rankings = False
+def update_tracker(flags, resume=False):
+    # Prepare journal
     start = datetime.now()
+    journal = UpdateJournal.last()
+    if journal is None or journal.status == UpdateStatus.complete:
+        if resume:
+            logger.warn("No previous update to resume! Starting new update.")
+
+        journal = UpdateJournal(start=start, flags=flags, status=UpdateStatus.not_started, stage=UpdateStage.not_started)
+    elif journal.status in (UpdateStatus.in_progress, UpdateStatus.not_started):
+        logger.error("Previous in-progress update found! Refusing to start a new update.")
+        return journal
+    elif resume:
+        logger.info("Resuming previous update.")
+        if sorted(flags) != sorted(journal.flags):
+            logger.warn("Provided flags do not match journal's flags! Using journal flags.")
+    else:
+        journal = UpdateJournal(start=start, flags=flags, status=UpdateStatus.not_started, stage=UpdateStage.not_started)
+
+    journal.status = UpdateStatus.in_progress
+    db.session.add(journal)
+    db.session.commit()
 
     try:
-        # Get the last update
-        last = UpdateLog.last()
+        # Get the last completed update
+        last = UpdateJournal.last_completed()
 
         with db.session.no_autoflush:
-            # Update the player data
-            players = update_players(start, last, flags)
+            if journal.stage == UpdateStage.not_started:
+                # Start with players
+                journal.stage_next(UpdateStage.players)
 
-            # Update the match stats
-            matches = update_matches(start, last, flags)
+            if journal.stage == UpdateStage.players:
+                # Update the player data
+                update_players(last, journal)
+
+                # Move onto matches
+                journal.stage_next(UpdateStage.matches)
+                db.session.commit()
+
+            if journal.stage == UpdateStage.matches:
+                # Update the match stats
+                update_matches(last, journal)
+
+                # Move onto global rankings
+                journal.stage_next(UpdateStage.global_rankings)
+                db.session.commit()
+
+            if journal.stage == UpdateStage.global_rankings:
+                # Update the global rankings
+                update_global_rankings(last, journal)
+
+                # Move onto completion
+                journal.stage_next(UpdateStage.complete)
+                db.session.commit()
     except:
-        logger.error("Exception encountered, rolling back...")
+        logger.error("Exception encountered, rolling back...", exc_info=True)
         try:
             db.session.rollback()
         except:
-            logger.critical("Failed to roll back session!")
-            raise
-        raise
-    else:
-        # Update the rankings
-        update_global_rankings()
-        rankings = True
+            logger.critical("Failed to roll back session!", exc_info=True)
 
-        # Mark success
-        success = True
+        # Record failure
+        journal.fail(start)
+    else:
+        # Record completion
+        journal.complete(start)
     finally:
-        # Record the update session
-        UpdateLog.record(success, start, datetime.now(), players, matches, rankings)
+        # Commit the journal
         db.session.commit()
 
-    return players, matches, rankings
+    return journal
 
 
 def decode_rank(rank):

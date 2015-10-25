@@ -4,7 +4,7 @@
 from enum import Enum, IntEnum, unique
 from hawkentracker.util import CaseInsensitiveDict
 
-# Internal enums
+# Enums
 @unique
 class UpdateFlag(Enum):
     players = "players"
@@ -12,7 +12,23 @@ class UpdateFlag(Enum):
     callsigns = "callsigns"
 
 
-# Database enums
+@unique
+class UpdateStatus(IntEnum):
+    not_started = 0
+    in_progress = 1
+    failed = 2
+    complete = 3
+
+
+@unique
+class UpdateStage(IntEnum):
+    not_started = 0
+    complete = 1
+    players = 2
+    matches = 3
+    global_rankings = 4
+
+
 @unique
 class LinkStatus(IntEnum):
     none = 0
