@@ -40,7 +40,7 @@ def dump_queries(name):
                     out.write("Param: {0}\n".format(item))
 
 
-def column_windows(session, column, windowsize, *conditions):
+def column_windows(session, column, windowsize, begin=None, end=None):
     """Return a series of WHERE clauses against
     a given column that break it into windows.
 
@@ -55,26 +55,38 @@ def column_windows(session, column, windowsize, *conditions):
         else:
             return column >= start_id
 
+    # Base query
     q = session.query(column, db.func.row_number().over(order_by=column).label("rownum")).from_self(column)
 
+    # Set window size
     if windowsize > 1:
         q = q.filter("rownum %% %d=1" % windowsize)
 
-    for condition in conditions:
-        q = q.filter(condition)
+    # Range filters
+    if begin is not None:
+        q = q.filter(column >= begin)
+    if end is not None:
+        q = q.filter(column < end)
 
+    # Get intervals
     intervals = [id for id, in q]
+
+    # Constrain intervals
+    if begin is not None:
+        intervals.insert(0, begin)
+    if end is not None:
+        intervals.append(end)
 
     while intervals:
         start = intervals.pop(0)
-        if intervals:
-            end = intervals[0]
-        else:
-            end = None
-        yield int_for_range(start, end)
+        if len(intervals) > 0:
+            yield int_for_range(start, intervals[0])
+        elif end is None:
+            # Only emit if there is no ending point (otherwise the end of the range is not constrained)
+            yield int_for_range(start, None)
 
 
-def windowed_query(q, column, windowsize, *conditions, streaming=False, chunk_commit=True, journal=None, logger=None, logger_prefix=None):
+def windowed_query(q, column, windowsize, begin=None, end=None, streaming=False, chunk_commit=True, journal=None, logger=None, logger_prefix=None):
     """"Break a Query into windows on a given column."""
 
     def format_log(msg):
@@ -85,7 +97,7 @@ def windowed_query(q, column, windowsize, *conditions, streaming=False, chunk_co
     if logger is not None:
         logger.debug(format_log("Generating windows..."))
 
-    windows = list(column_windows(q.session, column, windowsize, *conditions))
+    windows = list(column_windows(q.session, column, windowsize, begin=begin, end=end))
     total_windows = len(windows)
 
     if logger is not None:

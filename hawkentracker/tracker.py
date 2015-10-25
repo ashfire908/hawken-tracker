@@ -97,15 +97,13 @@ def add_match_players(match, players, poll_time):
 def update_players(last, journal):
     logger.info("[Players] Updating players")
 
-    # Get the list of players to update
-    query = Player.query
-    filters = []
-    if UpdateFlag.players not in journal.flags and last is not None:
-        filters.append(Player.last_seen > last)
-    filters.append(Player.last_seen <= journal.start)
+    if UpdateFlag.players in journal.flags:
+        last = None
 
     # Iterate over the players
-    for i, chunk in windowed_query(query, Player.last_seen, current_app.config["TRACKER_BATCH_SIZE"], *filters,
+    for i, chunk in windowed_query(Player.query, Player.last_seen, current_app.config["TRACKER_BATCH_SIZE"],
+                                   begin=last,
+                                   end=journal.start,
                                    journal=journal,
                                    logger=logger,
                                    logger_prefix="[Players]"):
@@ -178,15 +176,13 @@ def update_player_callsigns(players):
 def update_matches(last, journal):
     logger.info("[Matches] Updating matches")
 
-    # Get the list of matches to update
-    query = Match.query
-    filters = []
-    if UpdateFlag.matches not in journal.flags and last is not None:
-        filters.append(Match.last_seen > last)
-    filters.append(Match.last_seen <= journal.start)
+    if UpdateFlag.matches in journal.flags:
+        last = None
 
     # Iterate over the matches
-    for _, match in windowed_query(query, Match.last_seen, current_app.config["TRACKER_BATCH_SIZE"], *filters,
+    for _, match in windowed_query(Match.query, Match.last_seen, current_app.config["TRACKER_BATCH_SIZE"],
+                                   begin=last,
+                                   end=journal.start,
                                    streaming=True,
                                    journal=journal,
                                    logger=logger,
