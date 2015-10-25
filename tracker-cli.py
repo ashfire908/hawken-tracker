@@ -50,7 +50,7 @@ def main(task, verbosity, debug, update_flags, resume):
                     message("Update failed! Please see traceback for more information. Rerun update with resume to retry.")
             else:
                 message("Update already in progress!")
-                message("Started at {0}, current stage: {1} ({2}% complete)".format(journal.start, journal.stage, journal.stage_progress()))
+                message("Started at {0}, current stage: {1} ({2:.2f}% complete)".format(journal.start, journal.stage.name, journal.stage_progress))
 
             if journal.status != UpdateStatus.complete:
                 error = True
@@ -68,9 +68,13 @@ def main(task, verbosity, debug, update_flags, resume):
                 message("Last poll: {0}".format(poll))
                 message("Last successful update: {0}".format(successful_update))
                 if update.status != UpdateStatus.complete:
-                    message("Last update was not successful.")
-                    message("Started at: {0} (ran for {1} seconds)".format(update.start, update.time_elapsed))
-                    message("Status: {0} Stage: {1} ({2}% complete)".format(update.status, update.stage, update.stage_progress()))
+                    if update.status == UpdateStatus.failed:
+                        message("Last update was not successful.")
+                        message("Started at: {0} (ran for {1} seconds)".format(update.start, update.time_elapsed))
+                    else:
+                        message("Update currently in progress!")
+                        message("Started at: {0} ".format(update.start))
+                    message("Status: {0} Stage: {1} ({2:.2f}% complete)".format(update.status.name, update.stage.name, update.stage_progress))
     finally:
         if debug:
             dump_queries(task)

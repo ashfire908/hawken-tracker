@@ -788,6 +788,7 @@ class UpdateJournal(db.Model):
         db.session.add(self)
         return self.current_step
 
+    @property
     def stage_progress(self):
         if self.current_step is None or self.total_steps is None:
             return None
@@ -795,7 +796,7 @@ class UpdateJournal(db.Model):
         if self.total_steps == 0:
             return 0
 
-        return self.current_step / self.total_steps
+        return (self.current_step / self.total_steps) * 100
 
     def stage_checkpoint(self, current):
         self.current_step = current
