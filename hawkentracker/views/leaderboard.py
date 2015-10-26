@@ -2,6 +2,7 @@
 # Hawken Tracker - Leaderboard views
 
 from flask import Blueprint, render_template
+
 from hawkentracker.mappings import ranking_fields, ranking_names
 
 leaderboard = Blueprint("leaderboard", __name__)

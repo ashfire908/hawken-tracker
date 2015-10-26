@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Hawken Tracker - Form Models
+# Hawken Tracker - Forms
 
 from flask import current_app
 from flask_wtf import Form

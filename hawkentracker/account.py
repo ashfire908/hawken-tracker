@@ -5,7 +5,7 @@ from flask.ext.login import LoginManager, login_user as login, logout_user as lo
 from sqlalchemy.exc import IntegrityError
 from hawkentracker.mappings import CoreRole
 from hawkentracker.mailer import mail, welcome_email
-from hawkentracker.models.database import User, UserRole, AnonymousUser, db
+from hawkentracker.database import User, UserRole, AnonymousUser, db
 
 
 class InvalidLogin(Exception):

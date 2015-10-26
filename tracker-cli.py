@@ -4,6 +4,7 @@
 
 import sys
 import argparse
+
 from hawkentracker import create_app
 from hawkentracker.mappings import UpdateFlag, UpdateStatus
 
@@ -17,7 +18,8 @@ def main(task, verbosity, debug, update_flags, resume):
     error = False
 
     # Import what we need from within the app context
-    from hawkentracker.models.database import db, PollLog, UpdateJournal, dump_queries
+    from hawkentracker.database import db, PollLog, UpdateJournal
+    from hawkentracker.database.util import dump_queries
     from hawkentracker.tracker import poll_servers, update_tracker
 
     try:

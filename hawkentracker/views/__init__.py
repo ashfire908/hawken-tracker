@@ -4,8 +4,9 @@
 from datetime import datetime
 
 from flask import current_app
+
 from hawkentracker.helpers import format_dhms
-from hawkentracker.models.database import UpdateJournal
+from hawkentracker.database import UpdateJournal
 
 
 @current_app.context_processor

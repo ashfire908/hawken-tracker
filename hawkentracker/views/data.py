@@ -3,12 +3,13 @@
 
 from flask import Blueprint, request, jsonify, abort
 from sqlalchemy.orm import contains_eager
+
 from hawkentracker.interface import get_api, get_player_id
 from hawkentracker.tracker import get_ranked_players, get_global_rank
 from hawkentracker.mappings import ranking_fields, region_names, gametype_names, map_names
 from hawkentracker.permissions import permissions_view
 from hawkentracker.helpers import parse_serverside
-from hawkentracker.models.database import Player, Match, MatchPlayer
+from hawkentracker.database import Player, Match, MatchPlayer
 from hawkentracker.util import value_or_default
 
 data = Blueprint("data", __name__, url_prefix="/data")

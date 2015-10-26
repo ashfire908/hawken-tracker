@@ -3,11 +3,12 @@
 
 from flask import Blueprint, render_template, request, flash
 from flask.ext.login import login_required, fresh_login_required, current_user
+
 from hawkentracker.account import delete_user, logout_user
 from hawkentracker.helpers import to_next, to_last, access_denied
 from hawkentracker.interface import get_api, get_player_id
 from hawkentracker.mappings import LinkStatus
-from hawkentracker.models.database import Player, db
+from hawkentracker.database import Player, db
 from hawkentracker.permissions import permissions_view
 
 account = Blueprint("account", __name__, url_prefix="/account")

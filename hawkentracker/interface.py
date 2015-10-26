@@ -2,6 +2,7 @@
 # Hawken Tracker - External service helpers
 
 import logging
+
 from redis import StrictRedis
 from flask import current_app, g
 from requests.exceptions import HTTPError, Timeout, ConnectionError

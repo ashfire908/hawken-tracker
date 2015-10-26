@@ -5,6 +5,9 @@ import collections
 import re
 import random
 
+from passlib.context import CryptContext
+
+password_context = CryptContext(schemes=["sha256_crypt"])
 email_re = re.compile(r"^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$", re.I)
 
 

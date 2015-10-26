@@ -2,6 +2,7 @@
 # Hawken Tracker
 
 from flask import Flask
+
 from hawkentracker.config import load_config, setup_logging
 
 
@@ -19,7 +20,7 @@ def create_app(config_filename=None, config_parameters=None):
     app.jinja_env.add_extension("pyjade.ext.jinja.PyJadeExtension")
 
     # Setup model
-    from hawkentracker.models.database import db
+    from hawkentracker.database import db
     db.init_app(app)
 
     # Setup mailer

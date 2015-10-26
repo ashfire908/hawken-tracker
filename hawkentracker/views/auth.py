@@ -3,15 +3,15 @@
 
 from flask import Blueprint, render_template, request, flash
 from flask.ext.login import current_user
+
 from hawkentracker.account import InvalidLogin, InactiveAccount, UsernameAlreadyExists, EmailAlreadyExists, login_user,\
     logout_user, create_user, force_login
 from hawkentracker.helpers import to_next, to_index, access_denied
 from hawkentracker.mailer import mail, password_reset_email, reminder_email
 from hawkentracker.mappings import CoreRole
-from hawkentracker.models.database import User, TokenInvalid, TokenExpired, db
-from hawkentracker.models.form import LoginForm, RegistrationForm, ForgotAccountForm, PasswordResetForm
+from hawkentracker.database import User, TokenInvalid, TokenExpired, db
+from hawkentracker.forms import LoginForm, RegistrationForm, ForgotAccountForm, PasswordResetForm
 from hawkentracker.permissions import permissions_view
-
 
 auth = Blueprint("auth", __name__)
 

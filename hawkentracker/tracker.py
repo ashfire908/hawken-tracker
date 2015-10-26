@@ -3,12 +3,13 @@
 
 import logging
 from datetime import datetime
-from sqlalchemy import func
-from sqlalchemy.orm import joinedload, contains_eager
+
+from sqlalchemy.orm import contains_eager
 from flask import current_app
+
 from hawkentracker.interface import get_api, api_wrapper, get_redis, format_redis_key
-from hawkentracker.models.database import db, windowed_query, Player, PlayerStats, Match, MatchPlayer, PollLog,\
-    UpdateJournal
+from hawkentracker.database import db, Player, PlayerStats, Match, MatchPlayer, PollLog, UpdateJournal
+from hawkentracker.database.util import windowed_query
 from hawkentracker.mappings import ranking_fields, region_groupings, UpdateFlag, UpdateStatus, UpdateStage
 
 logger = logging.getLogger(__name__)
@@ -142,7 +143,7 @@ def update_player_regions(players):
     # Iterate through the players
     for player in players:
         # Detect most common region
-        regions_query = db.session.query(Match.server_region, func.count(Match.server_region)).\
+        regions_query = db.session.query(Match.server_region, db.func.count(Match.server_region)).\
                                    join(MatchPlayer).\
                                    filter(MatchPlayer.player_id == player.id).\
                                    group_by(Match.server_region)

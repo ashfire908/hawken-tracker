@@ -2,7 +2,9 @@
 # Hawken Tracker - Mappings
 
 from enum import Enum, IntEnum, unique
+
 from hawkentracker.util import CaseInsensitiveDict
+
 
 # Enums
 @unique

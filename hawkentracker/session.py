@@ -6,6 +6,7 @@ from uuid import uuid4
 import msgpack
 from werkzeug.datastructures import CallbackDict
 from flask.sessions import SessionInterface, SessionMixin
+
 from hawkentracker.interface import create_redis_session, format_redis_key
 
 

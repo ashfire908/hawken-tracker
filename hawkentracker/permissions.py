@@ -3,14 +3,15 @@
 
 from functools import wraps
 from itertools import count
-
 import types
 import logging
+
 from flask import current_app, g
 from flask.ext.login import current_user
+
 from hawkenapi.util import copyappend
 from hawkentracker.mappings import LinkStatus, default_privacy
-from hawkentracker.models.database import User, Player, Match
+from hawkentracker.database import User, Player, Match
 
 logger = logging.getLogger(__name__)
 
