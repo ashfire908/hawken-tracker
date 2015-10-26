@@ -104,7 +104,7 @@ def windowed_query(q, column, windowsize, begin=None, end=None, streaming=False,
     i = 0
     if journal is not None:
         i = journal.stage_start(total_windows)
-        db.session.commit()
+        q.session.commit()
 
     for whereclause in windows[i:]:
         if streaming:
@@ -122,7 +122,7 @@ def windowed_query(q, column, windowsize, begin=None, end=None, streaming=False,
         if chunk_commit:
             if logger is not None:
                 logger.debug(format_log("Committing chunk %d"), i)
-            db.session.commit()
+            q.session.commit()
 
         if logger is not None:
             logger.info(format_log("Chunk %d/%d complete"), i, total_windows)
