@@ -3,43 +3,102 @@
 
 import logging
 from datetime import datetime
+from functools import wraps
 
 from sqlalchemy.orm import contains_eager
 from flask import current_app
 
 from hawkentracker.interface import get_api, api_wrapper, get_redis, format_redis_key
 from hawkentracker.database import db, Player, PlayerStats, Match, MatchPlayer, PollLog, UpdateJournal
-from hawkentracker.database.util import windowed_query
+from hawkentracker.database.util import HandleUniqueViolation, windowed_query
 from hawkentracker.mappings import ranking_fields, region_groupings, UpdateFlag, UpdateStatus, UpdateStage
 
 logger = logging.getLogger(__name__)
 
 
+class CallsignConflictResolver:
+    def __init__(self, callsigns):
+        self.callsigns = callsigns
+
+    def __call__(self, f):
+        @HandleUniqueViolation(db.session, lambda e_orig: self.resolver(e_orig), "ix_players_callsign")
+        @wraps(f)
+        def wrap(*args, **kwargs):
+            return f(*args, **kwargs)
+
+        return wrap
+
+    def resolver(self, e_orig):
+        logger.warn("[Players] Callsign conflict encountered, resolving...")
+
+        # Resolve callsigns
+        conflicted_users = self.resolve_callsigns()
+
+        # Unset callsigns for conflicting users to prevent inter-update conflicts
+        # The other method to dealing with this would be active conflict resolution, but as these conflicts should be
+        # small, just clearing them should be fast enough.
+        Player.query.filter(Player.id.in_(list(conflicted_users.keys()))).update({Player.callsign: None}, synchronize_session=False)
+
+        # Update callsigns for conflicting users
+        for guid, new_callsign in conflicted_users:
+            Player.query.filter(Player.id == guid).update({Player.callsign: new_callsign}, synchronize_session=False)
+
+    def resolve_callsigns(self):
+        resolved_conflicts = {}
+
+        # Get the first set of conflicts
+        db_result = db.session.query(Player.id, Player.callsign).filter(self.callsign_filter(self.callsigns)).all()
+
+        # Assert we have at least some conflicts
+        assert len(db_result) > 0, "Encountered callsign conflict but found no conflicts! Checked callsigns: %s" % self.callsigns.values()
+
+        while len(db_result) > 0:
+            # Get updated callsigns for conflicted users
+            new_callsigns = api_wrapper(lambda: get_api().get_user_callsign([x for x, _ in db_result], cache_skip=True))
+
+            for guid, old, new in ((guid, callsign, new_callsigns[guid]) for guid, callsign in db_result):
+                # Assert the callsign actually changed before adding to resolved conflicts
+                assert old != new, "Callsign conflict on %s resolved to same callsign: %s" % (guid, new)
+                resolved_conflicts[guid] = new
+
+            # Check new callsigns for conflicts
+            db_result = db.session.query(Player.id, Player.callsign).filter(self.callsign_filter(new_callsigns)).all()
+
+        return resolved_conflicts
+
+    def callsign_filter(self, callsigns):
+        return db.func.lower(Player.callsign).in_([callsign.lower() for callsign in callsigns.values()])
+
+
 def update_seen_players(players, poll_time):
     logger.info("[Players] Updating seen players")
 
-    # Load callsigns
-    logger.debug("[Players] Loading player callsigns")
-    callsigns = api_wrapper(lambda: get_api().get_user_callsign(players, cache_skip=True))
-
-    # Collect existing player data
-    existing_players = db.session.query(Player.id, Player.callsign).filter(Player.id.in_(players)).all()
-    new_players = list(set(players).difference((guid for guid, _ in existing_players)))
+    # Collect existing players
+    existing_players = [guid for guid, in db.session.query(Player.id).filter(Player.id.in_(players))]
 
     # Update existing players
     logger.debug("[Players] Updating existing players")
-    Player.query.filter(Player.id.in_(players)).update({Player.last_seen: poll_time}, synchronize_session=False)
-    for guid, new_callsign in ((guid, callsigns[guid]) for guid, callsign in existing_players if guid in callsigns and callsign != callsigns[guid]):
-        Player.query.filter(Player.id == guid).update({Player.callsign: new_callsign}, synchronize_session=False)
+    Player.query.filter(Player.id.in_(existing_players)).update({Player.last_seen: poll_time}, synchronize_session=False)
+
+    # Collect new players
+    new_players = list(set(players).difference(existing_players))
 
     if len(new_players) > 0:
-        # Add new players
-        logger.debug("[Players] Adding new players")
-        for guid in new_players:
-            player = Player(id=guid)
-            player.callsign = callsigns.get(guid, None)
-            player.update(poll_time)
-            db.session.add(player)
+        # Load callsigns
+        logger.debug("[Players] Loading player callsigns")
+        callsigns = api_wrapper(lambda: get_api().get_user_callsign(new_players, cache_skip=True))
+
+        @CallsignConflictResolver(callsigns)
+        def add_players(players, callsigns):
+            # Add new players
+            logger.debug("[Players] Adding new players")
+            for guid in players:
+                player = Player(id=guid)
+                player.callsign = callsigns.get(guid, None)
+                player.update(poll_time)
+                db.session.add(player)
+
+        add_players(new_players, callsigns)
 
     return len(existing_players), len(new_players)
 
@@ -164,14 +223,18 @@ def update_player_callsigns(players):
     # Load the callsigns
     callsigns = api_wrapper(lambda: get_api().get_user_callsign([player.id for player in players], cache_skip=True))
 
-    # Iterate through the players
-    count = 0
-    for player in (player for player in players if player.id in callsigns and player.callsign != callsigns[player.id]):
-        player.callsign = callsigns[player.id]
-        db.session.add(player)
-        count += 1
+    @CallsignConflictResolver(callsigns)
+    def update_callsigns(players, callsigns):
+        # Iterate through the players
+        count = 0
+        for player in (player for player in players if player.id in callsigns and player.callsign != callsigns[player.id]):
+            player.callsign = callsigns[player.id]
+            db.session.add(player)
+            count += 1
 
-    return count
+        return count
+
+    return update_callsigns(players, callsigns)
 
 
 def update_matches(last, journal):

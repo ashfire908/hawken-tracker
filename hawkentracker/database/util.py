@@ -3,9 +3,14 @@
 
 import os
 import os.path
+from contextlib import contextmanager
+from functools import wraps
 
+import psycopg2
+import psycopg2.errorcodes
 from flask import current_app
 from flask.ext.sqlalchemy import get_debug_queries
+from sqlalchemy.exc import IntegrityError
 
 from hawkentracker.database import db
 
@@ -126,6 +131,50 @@ def windowed_query(q, column, windowsize, begin=None, end=None, streaming=False,
 
         if logger is not None:
             logger.info(format_log("Chunk %d/%d complete"), i, total_windows)
+
+
+class HandleUniqueViolation:
+    def __init__(self, session, resolver, *constraints):
+        self.session = session
+        self.resolver = resolver
+        self.constraints = constraints
+
+    def __call__(self, f):
+        @wraps(f)
+        def wrap(*args, **kwargs):
+            try:
+                with self.session_wrap():
+                    return f(*args, **kwargs)
+            except IntegrityError as e:
+                # Make sure we are handling a unique violation in an expected constraint
+                if not (isinstance(e.orig, psycopg2.IntegrityError) and
+                        e.orig.diag.sqlstate == psycopg2.errorcodes.UNIQUE_VIOLATION and
+                        e.orig.diag.constraint_name in self.constraints):
+                    raise
+
+                # Resolve
+                with self.resolver_wrap():
+                    self.resolver(e.orig)
+
+                # Rerun
+                with self.session_wrap():
+                    return f(*args, **kwargs)
+
+        return wrap
+
+    @contextmanager
+    def session_wrap(self):
+        # Execute in nested transaction, and flush afterwards
+        self.session.begin_nested()
+        yield
+        self.session.flush()
+
+    @contextmanager
+    def resolver_wrap(self):
+        # Rollback, execute, and flush
+        self.session.rollback()
+        yield
+        self.session.flush()
 
 
 class NativeIntEnum(db.TypeDecorator):
