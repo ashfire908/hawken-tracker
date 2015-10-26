@@ -55,7 +55,8 @@ class Player(db.Model):
     link_privacy = db.Column(db.Integer)
 
     matches = db.relationship("MatchPlayer", order_by="MatchPlayer.last_seen", backref=db.backref("player", uselist=False))
-    stats = db.relationship("PlayerStats", uselist=False, backref=db.backref("player", uselist=False))
+    stats = db.relationship("PlayerStats", uselist=False, order_by="PlayerStats.snapshot_taken")
+    stats_history = db.relationship("PlayerStats", order_by="PlayerStats.snapshot_taken", backref=db.backref("player", uselist=False))
     user = db.relationship("User", foreign_keys=[link_user], uselist=False, backref="players")
     blacklister = db.relationship("User", foreign_keys=[blacklist_by])
 
