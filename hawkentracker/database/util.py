@@ -1,13 +1,20 @@
 # -*- coding: utf-8 -*-
 # Hawken Tracker - Database Util
 
+import os
+import os.path
+
+from flask import current_app
 from flask.ext.sqlalchemy import get_debug_queries
 
 from hawkentracker.database import db
 
 
 def dump_queries(name):
-    with open("queries-{0}".format(name), "w") as out:
+    path = os.path.join(current_app.instance_path, "queries")
+    os.makedirs(path, exist_ok=True)
+
+    with open(os.path.join(path, "{0}.log".format(name)), "w") as out:
         for query in get_debug_queries():
             out.write("-- Query ({0:.3f}s)\n{1}\nStatement: {2}\n".format(query.duration, query.context, query.statement))
             if isinstance(query.parameters, dict):
