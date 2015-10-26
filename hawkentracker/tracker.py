@@ -343,7 +343,7 @@ def poll_servers():
     players_count = 0
     matches_count = 0
     success = True
-    start = datetime.now()
+    start = datetime.utcnow()
 
     try:
         api = get_api()
@@ -389,7 +389,7 @@ def poll_servers():
         raise
     finally:
         # Record the update session
-        PollLog.record(success, start, datetime.now(), players_count, matches_count)
+        PollLog.record(success, start, datetime.utcnow(), players_count, matches_count)
         db.session.commit()
 
     return players_count, matches_count
@@ -397,7 +397,7 @@ def poll_servers():
 
 def update_tracker(flags, resume=False):
     # Prepare journal
-    start = datetime.now()
+    start = datetime.utcnow()
     journal = UpdateJournal.last()
     if journal is None or journal.status == UpdateStatus.complete:
         if resume:

@@ -371,7 +371,7 @@ class User(db.Model):
         else:
             self.email_confirmation_for = email
         self.email_confirmation_token = random_hex(16)
-        self.email_confirmation_sent_at = datetime.now()
+        self.email_confirmation_sent_at = datetime.utcnow()
 
         return self.email_confirmation_token
 
@@ -382,13 +382,13 @@ class User(db.Model):
         if self.email_confirmation_sent_at is None:
             raise TokenExpired
 
-        delta = (datetime.now() - self.email_confirmation_sent_at).total_seconds()
+        delta = (datetime.utcnow() - self.email_confirmation_sent_at).total_seconds()
 
         if delta > current_app.config["EMAIL_TOKEN_MAX_AGE"]:
             raise TokenExpired
 
         self.confirmed = True
-        self.confirmed_at = datetime.now()
+        self.confirmed_at = datetime.utcnow()
 
         self.email_confirmation_for = None
         self.email_confirmation_token = None
@@ -400,7 +400,7 @@ class User(db.Model):
 
     def generate_password_reset_token(self):
         self.password_reset_token = random_hex(16)
-        self.password_reset_sent_at = datetime.now()
+        self.password_reset_sent_at = datetime.utcnow()
 
         return self.password_reset_token
 
@@ -411,7 +411,7 @@ class User(db.Model):
         if self.password_reset_sent_at is None:
             raise TokenExpired
 
-        delta = (datetime.now() - self.password_reset_sent_at).total_seconds()
+        delta = (datetime.utcnow() - self.password_reset_sent_at).total_seconds()
 
         if delta > current_app.config["RESET_TOKEN_MAX_AGE"]:
             raise TokenExpired
@@ -655,14 +655,14 @@ class UpdateJournal(db.Model):
         db.session.add(self)
 
     def fail(self, update_start):
-        now = datetime.now()
+        now = datetime.utcnow()
         self.time_elapsed += (now - update_start).total_seconds()
         self.end = now
         self.status = UpdateStatus.failed
         db.session.add(self)
 
     def complete(self, update_start):
-        now = datetime.now()
+        now = datetime.utcnow()
         self.time_elapsed += (now - update_start).total_seconds()
         self.end = now
         self.status = UpdateStatus.complete

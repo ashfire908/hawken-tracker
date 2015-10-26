@@ -16,6 +16,6 @@ def load_globals():
     if update is None:
         update = False
     else:
-        update = format_dhms((datetime.now() - update).total_seconds())
+        update = format_dhms((datetime.utcnow() - update).total_seconds())
 
     return dict(last_update=update)
