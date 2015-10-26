@@ -18,7 +18,7 @@ auth = Blueprint("auth", __name__)
 
 @auth.route("/login", methods=["GET", "POST"])
 def login():
-    if current_user.is_authenticated():
+    if current_user.is_authenticated:
         flash("You are already logged in.", "info")
         return to_next("account.overview")
 
@@ -48,7 +48,7 @@ def logout():
 
 @auth.route("/register", methods=["GET", "POST"])
 def register():
-    if current_user.is_authenticated():
+    if current_user.is_authenticated:
         flash("You are already logged in.", "info")
         return to_next("account.overview")
     elif permissions_view.user.create.self:
@@ -74,7 +74,7 @@ def register():
 
 @auth.route("/forgot", methods=["GET", "POST"])
 def forgot():
-    if current_user.is_authenticated():
+    if current_user.is_authenticated:
         flash("You are already logged in.", "info")
         return to_next("account.overview")
 

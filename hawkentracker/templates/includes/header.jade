@@ -4,7 +4,7 @@
             a.navbar-brand(href=url_for("leaderboard.index")) Hawken Tracker
         if last_update
             p.navbar-text Last Update: #{last_update} ago
-        if current_user.is_authenticated()
+        if current_user.is_authenticated
             ul.nav.navbar-nav.navbar-right
                 li#lookup.navbar-form.input-group(role="search")
                     input.form-control(type="text", placeholder="Player")

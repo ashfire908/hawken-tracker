@@ -57,7 +57,7 @@ def column_windows(session, column, windowsize, begin=None, end=None):
 
     # Set window size
     if windowsize > 1:
-        q = q.filter("rownum %% %d=1" % windowsize)
+        q = q.filter(db.text("rownum %% %d=1" % windowsize))
 
     # Range filters
     if begin is not None:
@@ -608,12 +608,15 @@ class User(db.Model):
             assert self.email != email
         return email
 
+    @property
     def is_authenticated(self):
         return True
 
+    @property
     def is_active(self):
         return not self.locked
 
+    @property
     def is_anonymous(self):
         return False
 
@@ -699,12 +702,15 @@ class AnonymousUser:
     def reset_password(self, token, new_password):
         raise NotImplementedError("Anonymous users cannot be modified")
 
+    @property
     def is_authenticated(self):
         return False
 
+    @property
     def is_active(self):
         return not self.locked
 
+    @property
     def is_anonymous(self):
         return True
 

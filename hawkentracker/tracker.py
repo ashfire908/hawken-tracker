@@ -27,9 +27,9 @@ def update_seen_players(players, poll_time):
 
     # Update existing players
     logger.debug("[Players] Updating existing players")
-    Player.query.filter(Player.id.in_(players)).update({"last_seen": poll_time}, synchronize_session=False)
+    Player.query.filter(Player.id.in_(players)).update({Player.last_seen: poll_time}, synchronize_session=False)
     for guid, new_callsign in ((guid, callsigns[guid]) for guid, callsign in existing_players if guid in callsigns and callsign != callsigns[guid]):
-        Player.query.filter(Player.id == guid).update({"callsign": new_callsign}, synchronize_session=False)
+        Player.query.filter(Player.id == guid).update({Player.callsign: new_callsign}, synchronize_session=False)
 
     if len(new_players) > 0:
         # Add new players
