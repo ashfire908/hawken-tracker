@@ -39,7 +39,7 @@ def global_leaderboard():
 
         # Add player info
         if permissions_view.player.player(player.id).leaderboard:
-            item["player"] = api.get_user_callsign(player.id) or player.id
+            item["player"] = player.callsign or player.id
             item["first_seen"] = player.first_seen.strftime("%Y-%m-%d %H:%M")
             item["last_seen"] = player.last_seen.strftime("%Y-%m-%d %H:%M")
             if permissions_view.player.player(player.id).region:

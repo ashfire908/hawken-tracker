@@ -34,7 +34,7 @@ def overview():
     }
 
     if permissions_view.user.user(current_user.id).link.list:
-        context["players"] = {api.get_user_callsign(player.id) or player.id: player for player in current_user.players if player.link_status != LinkStatus.none}
+        context["players"] = {player.callsign or player.id: player for player in current_user.players if player.link_status != LinkStatus.none}
 
     return render_template("account/overview.jade", LinkStatus=LinkStatus, **context)
 

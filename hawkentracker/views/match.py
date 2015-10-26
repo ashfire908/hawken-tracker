@@ -67,7 +67,7 @@ def view(id):
         for player in match.players:
             if permissions_view.player.player(player.player_id).match.match(match.id).view:
                 player = {
-                    "name": api.get_user_callsign(player.player_id) or player.player_id,
+                    "name": player.player.callsign or player.player_id,
                     "first_seen": player.first_seen.strftime("%Y-%m-%d %H:%M"),
                     "last_seen": player.last_seen.strftime("%Y-%m-%d %H:%M")
                 }

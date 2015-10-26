@@ -118,7 +118,7 @@ def view(target):
 
         if permissions_view.player.player(player.id).link.players:
             players = Player.query.filter(Player.link_user == player.user.id).filter(Player.link_status == LinkStatus.linked).filter(Player.id != guid)
-            context["linked"]["players"] = [api.get_user_callsign(player.id) or player.id for player in players]
+            context["linked"]["players"] = [player.callsign or player.id for player in players]
 
     return render_template("player/view.jade", **context)
 

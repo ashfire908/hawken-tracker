@@ -34,6 +34,6 @@ def view(username):
     }
 
     if permissions_view.user.user(user.id).link.list:
-        context["players"] = {api.get_user_callsign(player.id) or player.id: player for player in user.players if player.link_status != LinkStatus.none}
+        context["players"] = {player.callsign or player.id: player for player in user.players if player.link_status != LinkStatus.none}
 
     return render_template("user/view.jade", LinkStatus=LinkStatus, **context)
