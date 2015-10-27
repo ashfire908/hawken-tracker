@@ -27,7 +27,7 @@ class TokenInvalid(ValueError):
 class Player(db.Model):
     __tablename__ = "players"
     __table_args__ = (
-        db.Index("ix_players_callsign", db.text("lower(callsign)"), unique=True),
+        db.Index("ix_players_callsign", db.func.lower("callsign"), unique=True),
     )
 
     id = db.Column(db.String(36), primary_key=True)
@@ -333,9 +333,9 @@ class MatchPlayer(db.Model):
 class User(db.Model):
     __tablename__ = "users"
     __table_args__ = (
-        db.Index("ix_users_username", db.text("lower(username)"), unique=True),
-        db.Index("ix_users_email", db.text("lower(email)"), unique=True),
-        db.Index("ix_users_email_confirmation_for", db.text("lower(email_confirmation_for)"), unique=True)
+        db.Index("ix_users_username", db.func.lower("username"), unique=True),
+        db.Index("ix_users_email", db.func.lower("email"), unique=True),
+        db.Index("ix_users_email_confirmation_for", db.func.lower("email_confirmation_for"), unique=True)
     )
 
     id = db.Column(db.Integer, autoincrement=True, primary_key=True)
