@@ -197,7 +197,7 @@ def user_view(perm, args, check):
         # Global permission given
         return True
 
-    if args[0] == current_user.id:
+    if args[0] == current_user.user_id:
         # User is viewing themselves
         return True
 
@@ -214,7 +214,7 @@ def user_delete(perm, args, check):
         # Global permission given
         return True
 
-    if args[0] == current_user.id:
+    if args[0] == current_user.user_id:
         # User is deleting themselves
         return True
 
@@ -227,7 +227,7 @@ def user_settings(perm, args, check):
         # Global permission given
         return True
 
-    if args[0] == current_user.id:
+    if args[0] == current_user.user_id:
         # User is editing their own settings
         return True
 
@@ -240,7 +240,7 @@ def user_role(perm, args, check):
         # Global permission not given
         return False
 
-    if args[0] == current_user.id:
+    if args[0] == current_user.user_id:
         # User is editing their own role
         return False
 
@@ -253,7 +253,7 @@ def user_password(perm, args, check):
         # Global permission given
         return True
 
-    if args[0] == current_user.id:
+    if args[0] == current_user.user_id:
         # User is changing their own password
         return True
 
@@ -266,7 +266,7 @@ def user_link_list(perm, args, check):
         # Global permission given
         return True
 
-    if args[0] == current_user.id:
+    if args[0] == current_user.user_id:
         # User is listing their own linked players
         return True
 
@@ -283,11 +283,11 @@ def user_link_add(perm, args, check):
         # Global permission given
         return True
 
-    if args[0] == current_user.id:
+    if args[0] == current_user.user_id:
         # User matches requested user
         player = Player.query.get(args[1])
 
-        if player.link_user == current_user.id and player.link_status == LinkStatus.pending:
+        if player.link_user == current_user.user_id and player.link_status == LinkStatus.pending:
             # User is linking against a pending linked player
             return True
 
@@ -300,11 +300,11 @@ def user_link_remove(perm, args, check):
         # Global permission given
         return True
 
-    if args[0] == current_user.id:
+    if args[0] == current_user.user_id:
         # User matches requested user
         player = Player.query.get(args[1])
 
-        if player.link_user == current_user.id and player.link_status in (LinkStatus.pending, LinkStatus.linked):
+        if player.link_user == current_user.user_id and player.link_status in (LinkStatus.pending, LinkStatus.linked):
             # User is unlinking a pending or linked player
             return True
 

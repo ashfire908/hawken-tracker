@@ -101,5 +101,5 @@ block content
         if linked.user
             p
                 | This player is linked to 
-                a(href=url_for("user.view", user=linked.user.id))= linked.user.name
+                a(href=url_for("user.view", user=linked.user.user_id))= linked.user.name
                 | 's account.

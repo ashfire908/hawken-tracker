@@ -30,18 +30,18 @@ class Player(db.Model):
         db.Index("ix_players_callsign", db.func.lower("callsign"), unique=True),
     )
 
-    id = db.Column(db.String(36), primary_key=True)
+    player_id = db.Column(db.String(36), primary_key=True)
     callsign = db.Column(db.String)
     first_seen = db.Column(db.DateTime, nullable=False)
     last_seen = db.Column(db.DateTime, nullable=False)
     home_region = db.Column(db.String)
     common_region = db.Column(db.String)
-    link_user = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    link_user = db.Column(db.Integer, db.ForeignKey("users.user_id"), index=True)
     link_status = db.Column(NativeIntEnum(LinkStatus), default=LinkStatus.none, nullable=False)
     opt_out = db.Column(db.Boolean)
     blacklisted = db.Column(db.Boolean, default=False, nullable=False)
     blacklist_reason = db.Column(db.String)
-    blacklist_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    blacklist_by = db.Column(db.Integer, db.ForeignKey("users.user_id"))
     view_privacy = db.Column(db.Integer)
     region_privacy = db.Column(db.Integer)
     leaderboard_privacy = db.Column(db.Integer)
@@ -66,7 +66,7 @@ class Player(db.Model):
         self.last_seen = poll_time
 
     def link(self, user):
-        self.link_user = user.id
+        self.link_user = user.user_id
         self.link_status = LinkStatus.linked
 
     def unlink(self):
@@ -74,7 +74,7 @@ class Player(db.Model):
         self.link_status = LinkStatus.none
 
     def __repr__(self):
-        return "<Player(id='{0}')>".format(self.id)
+        return "<Player(player_id='{0}')>".format(self.player_id)
 
     @staticmethod
     def by_callsign(callsign):
@@ -84,7 +84,7 @@ class Player(db.Model):
 class PlayerStats(db.Model):
     __tablename__ = "player_stats"
 
-    player_id = db.Column(db.String(36), db.ForeignKey("players.id"), primary_key=True, index=True)
+    player_id = db.Column(db.String(36), db.ForeignKey("players.player_id"), primary_key=True, index=True)
     snapshot_taken = db.Column(db.DateTime, primary_key=True, index=True)
     mmr = db.Column(db.Float, index=True)
     pilot_level = db.Column(db.Integer, default=1, nullable=False, index=True)
@@ -259,7 +259,7 @@ class PlayerStats(db.Model):
 class Match(db.Model):
     __tablename__ = "matches"
 
-    id = db.Column(db.String(32), primary_key=True)
+    match_id = db.Column(db.String(32), primary_key=True)
     server_name = db.Column(db.String, nullable=False)
     server_region = db.Column(db.String, nullable=False)
     server_gametype = db.Column(db.String, nullable=False)
@@ -281,7 +281,7 @@ class Match(db.Model):
     players = db.relationship("MatchPlayer", order_by="MatchPlayer.last_seen", backref=db.backref("match", uselist=False))
 
     def __repr__(self):
-        return "<Match(id='{0}', server_name='{1}')>".format(self.id, self.server_name)
+        return "<Match(match_id='{0}', server_name='{1}')>".format(self.match_id, self.server_name)
 
     def update(self, server, poll_time):
         self.server_name = server["ServerName"]
@@ -316,8 +316,8 @@ class Match(db.Model):
 class MatchPlayer(db.Model):
     __tablename__ = "match_players"
 
-    match_id = db.Column(db.String(32), db.ForeignKey("matches.id"), index=True, primary_key=True)
-    player_id = db.Column(db.String(36), db.ForeignKey("players.id"), index=True, primary_key=True)
+    match_id = db.Column(db.String(32), db.ForeignKey("matches.match_id"), index=True, primary_key=True)
+    player_id = db.Column(db.String(36), db.ForeignKey("players.player_id"), index=True, primary_key=True)
     first_seen = db.Column(db.DateTime, nullable=False)
     last_seen = db.Column(db.DateTime, nullable=False)
 
@@ -338,14 +338,14 @@ class User(db.Model):
         db.Index("ix_users_email_confirmation_for", db.func.lower("email_confirmation_for"), unique=True)
     )
 
-    id = db.Column(db.Integer, autoincrement=True, primary_key=True)
+    user_id = db.Column(db.Integer, autoincrement=True, primary_key=True)
     username = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False)
     password = db.Column(db.String, nullable=False)
     creation = db.Column(db.DateTime, default=datetime.now, nullable=False)
     locked = db.Column(db.Boolean, default=False, nullable=False)
     lock_reason = db.Column(db.String)
-    lock_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    lock_by = db.Column(db.Integer, db.ForeignKey("users.user_id"))
     confirmed = db.Column(db.Boolean, default=False, nullable=False)
     confirmed_at = db.Column(db.DateTime)
     email_confirmation_for = db.Column(db.String)
@@ -353,13 +353,13 @@ class User(db.Model):
     email_confirmation_sent_at = db.Column(db.DateTime)
     password_reset_token = db.Column(db.String)
     password_reset_sent_at = db.Column(db.DateTime)
-    role_id = db.Column(db.Integer, db.ForeignKey("user_roles.id"), nullable=False)
+    role_id = db.Column(db.Integer, db.ForeignKey("user_roles.role_id"), nullable=False)
     view_privacy = db.Column(db.Integer)
     link_privacy = db.Column(db.Integer)
 
     @property
     def linked_players(self):
-        return [player.id for player in self.players if player.link_status == LinkStatus.linked]
+        return [player.player_id for player in self.players if player.link_status == LinkStatus.linked]
 
     def verify_password(self, password):
         return password_context.verify(password, self.password)
@@ -467,10 +467,10 @@ class User(db.Model):
         return False
 
     def get_id(self):
-        return str(self.id)
+        return str(self.user_id)
 
     def __repr__(self):
-        return "<User(id={0}, username='{1}')>".format(self.id, self.username)
+        return "<User(user_id={0}, username='{1}')>".format(self.user_id, self.username)
 
     @staticmethod
     def by_username(username):
@@ -486,7 +486,7 @@ class User(db.Model):
 
 
 class AnonymousUser:
-    id = "anon"
+    user_id = "anon"
     username = None
     email = None
     password = None
@@ -555,7 +555,7 @@ class AnonymousUser:
         return True
 
     def get_id(self):
-        return str(self.id)
+        return str(self.user_id)
 
     def __repr__(self):
         return "<AnonymousUser>"
@@ -564,7 +564,7 @@ class AnonymousUser:
 class UserRole(db.Model):
     __tablename__ = "user_roles"
 
-    id = db.Column(db.Integer, autoincrement=True, primary_key=True)
+    role_id = db.Column(db.Integer, autoincrement=True, primary_key=True)
     name = db.Column(db.String, unique=True, nullable=False)
     superadmin = db.Column(db.Boolean, nullable=False)
 
@@ -572,13 +572,13 @@ class UserRole(db.Model):
     permissions = db.relationship("UserPermission", backref=db.backref("role", uselist=False))
 
     def __repr__(self):
-        return "<UserRole(id={0}, name='{1}')>".format(self.id, self.name)
+        return "<UserRole(role_id={0}, name='{1}')>".format(self.role_id, self.name)
 
 
 class UserPermission(db.Model):
     __tablename__ = "user_permissions"
 
-    role_id = db.Column(db.Integer, db.ForeignKey("user_roles.id"), primary_key=True, index=True)
+    role_id = db.Column(db.Integer, db.ForeignKey("user_roles.role_id"), primary_key=True, index=True)
     permission = db.Column(db.String, primary_key=True)
     power = db.Column(db.Integer, default=0)
 

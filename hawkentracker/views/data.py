@@ -27,7 +27,7 @@ def global_leaderboard():
 
     # Load the data
     players = get_ranked_players(sort, 100, preload=additional)
-    rankings = get_global_rank([player.id for player in players], sort)[0]
+    rankings = get_global_rank([player.player_id for player in players], sort)[0]
 
     # Format it for return
     items = []
@@ -35,14 +35,14 @@ def global_leaderboard():
         item = {}
 
         # Add rank
-        item["rank"] = rankings[player.id]
+        item["rank"] = rankings[player.player_id]
 
         # Add player info
-        if permissions_view.player.player(player.id).leaderboard:
-            item["player"] = player.callsign or player.id
+        if permissions_view.player.player(player.player_id).leaderboard:
+            item["player"] = player.callsign or player.player_id
             item["first_seen"] = player.first_seen.strftime("%Y-%m-%d %H:%M")
             item["last_seen"] = player.last_seen.strftime("%Y-%m-%d %H:%M")
-            if permissions_view.player.player(player.id).region:
+            if permissions_view.player.player(player.player_id).region:
                 region = (player.home_region or player.common_region)
                 item["region"] = region_names.get(region, region)
             else:
@@ -53,7 +53,7 @@ def global_leaderboard():
             item["last_seen"] = None
             item["region"] = None
 
-        if permissions_view.player.player(player.id).stats.ranked:
+        if permissions_view.player.player(player.player_id).stats.ranked:
             for stat in additional:
                 if sort != stat:
                     item[stat] = getattr(player.stats, stat)
@@ -80,7 +80,7 @@ def player_matches(player):
         # No such player tracked
         abort(404)
 
-    if not permissions_view.player.player(player.id).match.list:
+    if not permissions_view.player.player(player.player_id).match.list:
         # Player's matches are private
         abort(401)
 
@@ -123,7 +123,7 @@ def player_matches(player):
     for match in matches:
         data["recordsTotal"] += 1
 
-        if not permissions_view.player.player(player.id).match.match(match.match_id).view:
+        if not permissions_view.player.player(player.player_id).match.match(match.match_id).view:
             continue
 
         # Add match info

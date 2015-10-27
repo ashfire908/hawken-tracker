@@ -37,17 +37,17 @@ class CallsignConflictResolver:
         # Unset callsigns for conflicting users to prevent inter-update conflicts
         # The other method to dealing with this would be active conflict resolution, but as these conflicts should be
         # small, just clearing them should be fast enough.
-        Player.query.filter(Player.id.in_(list(conflicted_users.keys()))).update({Player.callsign: None}, synchronize_session=False)
+        Player.query.filter(Player.player_id.in_(list(conflicted_users.keys()))).update({Player.callsign: None}, synchronize_session=False)
 
         # Update callsigns for conflicting users
         for guid, new_callsign in conflicted_users:
-            Player.query.filter(Player.id == guid).update({Player.callsign: new_callsign}, synchronize_session=False)
+            Player.query.filter(Player.player_id == guid).update({Player.callsign: new_callsign}, synchronize_session=False)
 
     def resolve_callsigns(self):
         resolved_conflicts = {}
 
         # Get the first set of conflicts
-        db_result = db.session.query(Player.id, Player.callsign).filter(self.callsign_filter(self.callsigns)).all()
+        db_result = db.session.query(Player.player_id, Player.callsign).filter(self.callsign_filter(self.callsigns)).all()
 
         # Assert we have at least some conflicts
         assert len(db_result) > 0, "Encountered callsign conflict but found no conflicts! Checked callsigns: %s" % self.callsigns.values()
@@ -62,7 +62,7 @@ class CallsignConflictResolver:
                 resolved_conflicts[guid] = new
 
             # Check new callsigns for conflicts
-            db_result = db.session.query(Player.id, Player.callsign).filter(self.callsign_filter(new_callsigns)).all()
+            db_result = db.session.query(Player.player_id, Player.callsign).filter(self.callsign_filter(new_callsigns)).all()
 
         return resolved_conflicts
 
@@ -74,11 +74,11 @@ def update_seen_players(players, poll_time):
     logger.info("[Players] Updating seen players")
 
     # Collect existing players
-    existing_players = [guid for guid, in db.session.query(Player.id).filter(Player.id.in_(players))]
+    existing_players = [guid for guid, in db.session.query(Player.player_id).filter(Player.player_id.in_(players))]
 
     # Update existing players
     logger.debug("[Players] Updating existing players")
-    Player.query.filter(Player.id.in_(existing_players)).update({Player.last_seen: poll_time}, synchronize_session=False)
+    Player.query.filter(Player.player_id.in_(existing_players)).update({Player.last_seen: poll_time}, synchronize_session=False)
 
     # Collect new players
     new_players = list(set(players).difference(existing_players))
@@ -93,7 +93,7 @@ def update_seen_players(players, poll_time):
             # Add new players
             logger.debug("[Players] Adding new players")
             for guid in players:
-                player = Player(id=guid)
+                player = Player(player_id=guid)
                 player.callsign = callsigns.get(guid, None)
                 player.update(poll_time)
                 db.session.add(player)
@@ -109,23 +109,23 @@ def update_seen_matches(matches, poll_time):
     # Update existing matches
     logger.debug("[Matches] Updating existing matches")
     found = []
-    for match in Match.query.filter(Match.id.in_(matches.keys())):
-        found.append(match.id)
-        match.update(matches[match.id], poll_time)
+    for match in Match.query.filter(Match.match_id.in_(matches.keys())):
+        found.append(match.match_id)
+        match.update(matches[match.match_id], poll_time)
         db.session.add(match)
 
         # Update match players
-        update_match_players(match, matches[match.id]["Users"], poll_time)
+        update_match_players(match, matches[match.match_id]["Users"], poll_time)
 
     # Add new matches
     logger.debug("[Matches] Adding new matches")
     for match_id in (match_id for match_id in matches.keys() if match_id not in found):
-        match = Match(id=match_id)
-        match.update(matches[match.id], poll_time)
+        match = Match(match_id=match_id)
+        match.update(matches[match.match_id], poll_time)
         db.session.add(match)
 
         # Add match players
-        add_match_players(match, matches[match.id]["Users"], poll_time)
+        add_match_players(match, matches[match.match_id]["Users"], poll_time)
 
     return len(found), len(matches) - len(found)
 
@@ -134,14 +134,14 @@ def update_match_players(match, players, poll_time):
     if len(players) > 0:
         # Update existing players
         found = []
-        for matchplayer in MatchPlayer.query.filter(MatchPlayer.match_id == match.id, MatchPlayer.player_id.in_(players)):
+        for matchplayer in MatchPlayer.query.filter(MatchPlayer.match_id == match.match_id, MatchPlayer.player_id.in_(players)):
             found.append(matchplayer.player_id)
             matchplayer.update(poll_time)
             db.session.add(matchplayer)
 
         # Add new players
         for player in (player for player in players if player not in found):
-            matchplayer = MatchPlayer(match_id=match.id, player_id=player)
+            matchplayer = MatchPlayer(match_id=match.match_id, player_id=player)
             matchplayer.update(poll_time)
             db.session.add(matchplayer)
 
@@ -149,7 +149,7 @@ def update_match_players(match, players, poll_time):
 def add_match_players(match, players, poll_time):
     # Add new players
     for player in players:
-        matchplayer = MatchPlayer(match_id=match.id, player_id=player)
+        matchplayer = MatchPlayer(match_id=match.match_id, player_id=player)
         matchplayer.update(poll_time)
         db.session.add(matchplayer)
 
@@ -184,7 +184,7 @@ def update_players(last, journal):
 
 
 def update_player_stats(players, update_time):
-    ids = [player.id for player in players]
+    ids = [player.player_id for player in players]
 
     # Load the stats
     # Using the cache here can fill up the redis backend with player data, so we skip it here.
@@ -192,9 +192,9 @@ def update_player_stats(players, update_time):
 
     # Update players
     for player in players:
-        if player.id in stats:
-            player_stats = PlayerStats(player_id=player.id, snapshot_taken=update_time)
-            player_stats.update(stats[player.id])
+        if player.player_id in stats:
+            player_stats = PlayerStats(player_id=player.player_id, snapshot_taken=update_time)
+            player_stats.update(stats[player.player_id])
             db.session.add(player_stats)
 
 
@@ -204,7 +204,7 @@ def update_player_regions(players):
         # Detect most common region
         regions_query = db.session.query(Match.server_region, db.func.count(Match.server_region)).\
                                    join(MatchPlayer).\
-                                   filter(MatchPlayer.player_id == player.id).\
+                                   filter(MatchPlayer.player_id == player.player_id).\
                                    group_by(Match.server_region)
 
         # Group regions
@@ -221,14 +221,14 @@ def update_player_regions(players):
 
 def update_player_callsigns(players):
     # Load the callsigns
-    callsigns = api_wrapper(lambda: get_api().get_user_callsign([player.id for player in players], cache_skip=True))
+    callsigns = api_wrapper(lambda: get_api().get_user_callsign([player.player_id for player in players], cache_skip=True))
 
     @CallsignConflictResolver(callsigns)
     def update_callsigns(players, callsigns):
         # Iterate through the players
         count = 0
-        for player in (player for player in players if player.id in callsigns and player.callsign != callsigns[player.id]):
-            player.callsign = callsigns[player.id]
+        for player in (player for player in players if player.player_id in callsigns and player.callsign != callsigns[player.player_id]):
+            player.callsign = callsigns[player.player_id]
             db.session.add(player)
             count += 1
 
@@ -261,7 +261,7 @@ def update_match_stats(match, update_time):
     # Get the player stats for the match
     stats = db.session.query(PlayerStats.mmr, PlayerStats.pilot_level).\
                        join(MatchPlayer, PlayerStats.player_id == MatchPlayer.player_id).\
-                       filter(MatchPlayer.match_id == match.id).all()
+                       filter(MatchPlayer.match_id == match.match_id).all()
 
     if len(stats) > 0:
         # Unpack and update match stats
@@ -467,6 +467,10 @@ def update_tracker(flags, resume=False):
         db.session.commit()
 
     return journal
+
+
+
+
 
 
 def decode_rank(rank):

@@ -18,7 +18,7 @@ account = Blueprint("account", __name__, url_prefix="/account")
 @login_required
 def overview():
     # Access check
-    if not permissions_view.user.user(current_user.id).view:
+    if not permissions_view.user.user(current_user.user_id).view:
         return access_denied("You do not have permission to view this user.")
 
     # Get the Hawken API
@@ -28,13 +28,13 @@ def overview():
     context = {
         "user": current_user,
         "players": False,
-        "delete": permissions_view.user.user(current_user.id).delete,
-        "settings": permissions_view.user.user(current_user.id).settings,
-        "password": permissions_view.user.user(current_user.id).password
+        "delete": permissions_view.user.user(current_user.user_id).delete,
+        "settings": permissions_view.user.user(current_user.user_id).settings,
+        "password": permissions_view.user.user(current_user.user_id).password
     }
 
-    if permissions_view.user.user(current_user.id).link.list:
-        context["players"] = {player.callsign or player.id: player for player in current_user.players if player.link_status != LinkStatus.none}
+    if permissions_view.user.user(current_user.user_id).link.list:
+        context["players"] = {player.callsign or player.player_id: player for player in current_user.players if player.link_status != LinkStatus.none}
 
     return render_template("account/overview.jade", LinkStatus=LinkStatus, **context)
 
@@ -43,7 +43,7 @@ def overview():
 @fresh_login_required
 def settings():
     # Access check
-    if not permissions_view.user.user(current_user.id).settings:
+    if not permissions_view.user.user(current_user.user_id).settings:
         return access_denied("You do not have permission to edit this user's settings.")
 
     if request.method == "POST":
@@ -56,7 +56,7 @@ def settings():
 @fresh_login_required
 def password():
     # Access check
-    if not permissions_view.user.user(current_user.id).password:
+    if not permissions_view.user.user(current_user.user_id).password:
         return access_denied("You do not have permission to edit this user's password.")
 
     if request.method == "POST":
@@ -98,12 +98,12 @@ def link_player(target):
     user = current_user
 
     # Access check
-    if not permissions_view.user.user(user.id).link.player(player.id).add:
-        if player.link_user == user.id and player.link_status == LinkStatus.linked:
+    if not permissions_view.user.user(user.user_id).link.player(player.player_id).add:
+        if player.link_user == user.user_id and player.link_status == LinkStatus.linked:
             flash("You are already linked to this player.", "error")
         elif player.link_status == LinkStatus.none:
             flash("No link is pending from this player. Please initiate a link from ScrimBot.", "error")
-        elif player.link_user != user.id:
+        elif player.link_user != user.user_id:
             flash("This player is linked to another user already.", "error")
         else:
             return access_denied("You do not have permission to link to this player.")
@@ -139,8 +139,8 @@ def unlink_player(target):
     user = current_user
 
     # Access check
-    if not permissions_view.user.user(user.id).link.player(player.id).remove:
-        if player.link_user != user.id or player.link_status == LinkStatus.none:
+    if not permissions_view.user.user(user.user_id).link.player(player.player_id).remove:
+        if player.link_user != user.user_id or player.link_status == LinkStatus.none:
             flash("No link is established or pending between this user and your account.", "error")
         else:
             return access_denied("You do not have permission to unlink to this player.")
@@ -161,7 +161,7 @@ def unlink_player(target):
 @fresh_login_required
 def delete():
     # Access check
-    if not permissions_view.user.user(current_user.id).delete:
+    if not permissions_view.user.user(current_user.user_id).delete:
         return access_denied("You do not have permission to delete this user.")
 
     if request.method == "POST":

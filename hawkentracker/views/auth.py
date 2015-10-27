@@ -199,7 +199,7 @@ def verify_email():
 
     flash("Email successfully verified!", "success")
 
-    if current_user.id == user.id:
+    if current_user.user_id == user.user_id:
         return to_next("account.overview")
 
     return to_next("auth.login")

@@ -34,13 +34,13 @@ def view(id):
         return to_last()
 
     # Access check
-    if not permissions_view.match.match(match.id).view:
+    if not permissions_view.match.match(match.match_id).view:
         return access_denied("You do not have permission to view this match.")
 
     # Build the page info
     context = {
         "match": {
-            "id": match.id,
+            "id": match.match_id,
             "server_name": match.server_name,
             "server_region": region_names.get(match.server_region, match.server_region),
             "server_gametype": gametype_names.get(match.server_gametype, match.server_gametype),
@@ -54,18 +54,18 @@ def view(id):
     }
 
     # Stats
-    if permissions_view.match.match(match.id).stats:
+    if permissions_view.match.match(match.match_id).stats:
         context["match"].update({
             "mmr_avg": "{0:.2f}".format(match.mmr_avg),
             "pilot_level_avg": "{0:.1f}".format(match.pilot_level_avg)
         })
 
     # Players
-    if permissions_view.match.match(match.id).players:
+    if permissions_view.match.match(match.match_id).players:
         context["players"] = []
 
         for player in match.players:
-            if permissions_view.player.player(player.player_id).match.match(match.id).view:
+            if permissions_view.player.player(player.player_id).match.match(match.match_id).view:
                 player = {
                     "name": player.player.callsign or player.player_id,
                     "first_seen": player.first_seen.strftime("%Y-%m-%d %H:%M"),

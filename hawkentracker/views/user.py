@@ -18,7 +18,7 @@ def view(username):
     user = User.by_username(username)
 
     # Access check
-    if not permissions_view.user.user(user.id).view:
+    if not permissions_view.user.user(user.user_id).view:
         return access_denied("You do not have permission to view this user.")
 
     # Get the Hawken API
@@ -28,12 +28,12 @@ def view(username):
     context = {
         "user": user,
         "players": False,
-        "delete": permissions_view.user.user(user.id).delete,
-        "settings": permissions_view.user.user(user.id).settings,
-        "password": permissions_view.user.user(user.id).password
+        "delete": permissions_view.user.user(user.user_id).delete,
+        "settings": permissions_view.user.user(user.user_id).settings,
+        "password": permissions_view.user.user(user.user_id).password
     }
 
-    if permissions_view.user.user(user.id).link.list:
-        context["players"] = {player.callsign or player.id: player for player in user.players if player.link_status != LinkStatus.none}
+    if permissions_view.user.user(user.user_id).link.list:
+        context["players"] = {player.callsign or player.player_id: player for player in user.players if player.link_status != LinkStatus.none}
 
     return render_template("user/view.jade", LinkStatus=LinkStatus, **context)
