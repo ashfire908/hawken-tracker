@@ -2,7 +2,7 @@
 # Hawken Tracker - Database Models
 
 import statistics
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import current_app
 from sqlalchemy.dialects import postgres
@@ -254,6 +254,7 @@ class Match(db.Model):
     __tablename__ = "matches"
 
     match_id = db.Column(db.String(32), primary_key=True)
+    server_id = db.Column(db.String(36), index=True, nullable=False)
     server_name = db.Column(db.String, nullable=False)
     server_region = db.Column(db.String, nullable=False)
     server_gametype = db.Column(db.String, nullable=False)
@@ -266,6 +267,18 @@ class Match(db.Model):
     first_seen = db.Column(db.DateTime, nullable=False)
     last_seen = db.Column(db.DateTime, nullable=False)
     last_stats_update = db.Column(db.DateTime)
+
+    match_started = db.Column(db.DateTime)
+    match_ended = db.Column(db.DateTime)
+    players_started = db.Column(db.Integer)
+    players_started_inactive = db.Column(db.Integer)
+    players_ended = db.Column(db.Integer)
+    players_ended_inactive = db.Column(db.Integer)
+    bots_started = db.Column(db.Integer)
+    bots_ended = db.Column(db.Integer)
+    winning_team = db.Column(db.Integer)
+    win_reason = db.Column(db.String)
+
     pilot_level_avg = db.Column(db.Float)
     mmr_avg = db.Column(db.Float)
     mmr_min = db.Column(db.Float)
@@ -284,6 +297,7 @@ class Match(db.Model):
             self.last_seen = seen_time
 
     def load_server_info(self, server):
+        self.server_id = server["Guid"]
         self.server_name = server["ServerName"]
         self.server_region = server["Region"]
         self.server_gametype = server["GameType"]
@@ -294,6 +308,20 @@ class Match(db.Model):
         self.server_tournament = server["DeveloperData"].get("bTournament", "false").lower() == "true"
         self.server_password_protected = len(server["DeveloperData"].get("PasswordHash", "")) > 0
         self.server_mmr_ignored = server["DeveloperData"].get("bIgnoreMMR", "FALSE").lower() == "true"
+
+    def load_match_started(self, event_data):
+        self.match_started = datetime.fromtimestamp(float(event_data["TimeCreated"]), timezone.utc)
+        self.players_started = int(event_data["Num_Players"])
+        self.players_started_inactive = int(event_data["Num_Players_Inactive"])
+        self.bots_started = int(event_data["Num_Bots"])
+
+    def load_match_ended(self, event_data):
+        self.match_ended = datetime.fromtimestamp(float(event_data["TimeCreated"]), timezone.utc)
+        self.players_ended = int(event_data["Num_Players"])
+        self.players_ended_inactive = int(event_data["Num_Players_Inactive"])
+        self.bots_ended = int(event_data["Num_Bots"])
+        self.winning_team = int(event_data["WinningTeamID"])
+        self.win_reason = event_data["WinReason"].lower()  # lower() to normalize data
 
     def calculate_stats(self, mmrs, pilot_levels, update_time):
         # Update stats
@@ -317,6 +345,14 @@ class MatchPlayer(db.Model):
     first_seen = db.Column(db.DateTime, nullable=False)
     last_seen = db.Column(db.DateTime, nullable=False)
 
+    match_team = db.Column(db.Integer)
+    match_kills = db.Column(db.Integer)
+    player_mmr = db.Column(db.Float)
+    xp_gained = db.Column(db.Integer)
+    hc_gained = db.Column(db.Integer)
+    started_with = db.Column(db.Boolean)
+    ended_with = db.Column(db.Boolean)
+
     def __repr__(self):
         return "<MatchPlayer(match_id='{0}', player_id='{1}')>".format(self.match_id, self.player_id)
 
@@ -325,6 +361,19 @@ class MatchPlayer(db.Model):
             self.first_seen = seen_time
         if self.last_seen is None or self.last_seen < seen_time:
             self.last_seen = seen_time
+
+    def load_match_started(self, player_event_data, active):
+        self.started_with = active
+        # We don't care about anything else
+
+    def load_match_ended(self, player_event_data, active):
+        self.ended_with = active
+
+        self.match_team = int(player_event_data["TeamID"])
+        self.match_kills = int(player_event_data["Kills"])
+        self.player_mmr = float(player_event_data["Rating"])
+        self.xp_gained = int(player_event_data["ExpPoints"])
+        self.hc_gained = int(player_event_data["HawkenPoints"])
 
 
 class User(db.Model):
