@@ -10,4 +10,4 @@ def api_response(payload, status):
     return Response(response=json.dumps(payload), status=status, mimetype="application/json")
 
 # Load submodules
-from hawkentracker.views.api import data
+from hawkentracker.views.api import data, ingester
