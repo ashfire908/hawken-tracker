@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Hawken Tracker - Data views
 
-from flask import Blueprint, request, jsonify, abort
+from flask import request
 from sqlalchemy.orm import contains_eager
 
 from hawkentracker.interface import get_api, get_player_id
@@ -11,11 +11,10 @@ from hawkentracker.permissions import permissions_view
 from hawkentracker.helpers import parse_serverside
 from hawkentracker.database import Player, Match, MatchPlayer
 from hawkentracker.util import value_or_default
+from hawkentracker.views.api import api, api_response
 
-data = Blueprint("data", __name__, url_prefix="/data")
 
-
-@data.route("/leaderboard/global")
+@api.route("/leaderboard/global")
 def global_leaderboard():
     api = get_api()
 
@@ -62,27 +61,27 @@ def global_leaderboard():
         items.append(item)
 
     # Return it
-    return jsonify(data=items)
+    return api_response({"data": items}, 200)
 
 
-@data.route("/player/<player>/matches", methods=["POST"])
+@api.route("/player/<player>/matches", methods=["POST"])
 def player_matches(player):
     # Get the target player
     guid, _ = get_player_id(player, False)
     if guid is None:
         # No such player
-        abort(404)
+        return api_response({"error": "No such player"}, 404)
 
     # Load the player
     player = Player.query.get(guid)
 
     if player is None:
         # No such player tracked
-        abort(404)
+        return api_response({"error": "No tracked player"}, 404)
 
     if not permissions_view.player.player(player.player_id).match.list:
         # Player's matches are private
-        abort(401)
+        return api_response({"error": "Player matches are private"}, 401)
 
     # Parse the request info
     request_info = parse_serverside(request.form)
@@ -130,7 +129,7 @@ def player_matches(player):
         item = {
             "id": match.match_id,
             "server_name": match.match.server_name,
-            "server_region": value_or_default(region_names[match.match.server_region], match.match.server_region),
+            "server_region": value_or_default(region_names.get(match.match.server_region, None), match.match.server_region),
             "server_gametype": value_or_default(gametype_names[match.match.server_gametype], match.match.server_gametype),
             "server_map": value_or_default(map_names[match.match.server_map], match.match.server_map),
             "server_version": match.match.server_version,
@@ -157,4 +156,4 @@ def player_matches(player):
             data["recordsFiltered"] += 1
 
     # Return it
-    return jsonify(**data)
+    return api_response(data, 200)

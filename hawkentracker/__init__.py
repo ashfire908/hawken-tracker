@@ -39,15 +39,15 @@ def create_app(config_filename=None, config_parameters=None):
 
         # Setup views
         from hawkentracker.views.account import account
+        from hawkentracker.views.api import api
         from hawkentracker.views.auth import auth
-        from hawkentracker.views.data import data
         from hawkentracker.views.leaderboard import leaderboard
         from hawkentracker.views.match import match
         from hawkentracker.views.player import player
         from hawkentracker.views.user import user
         app.register_blueprint(account)
+        app.register_blueprint(api)
         app.register_blueprint(auth)
-        app.register_blueprint(data)
         app.register_blueprint(leaderboard)
         app.register_blueprint(match)
         app.register_blueprint(player)
