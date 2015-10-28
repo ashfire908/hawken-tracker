@@ -60,10 +60,11 @@ class Player(db.Model):
     user = db.relationship("User", foreign_keys=[link_user], uselist=False, backref="players")
     blacklister = db.relationship("User", foreign_keys=[blacklist_by])
 
-    def update(self, poll_time):
-        if self.first_seen is None:
-            self.first_seen = poll_time
-        self.last_seen = poll_time
+    def seen(self, seen_time):
+        if self.first_seen is None or self.first_seen > seen_time:
+            self.first_seen = seen_time
+        if self.last_seen is None or self.last_seen < seen_time:
+            self.last_seen = seen_time
 
     def link(self, user):
         self.link_user = user.user_id
@@ -144,7 +145,7 @@ class PlayerStats(db.Model):
     def __repr__(self):
         return "<PlayerStats(player_id='{0}', snapshot_taken={1})>".format(self.player_id, self.snapshot_taken)
 
-    def update(self, stats):
+    def load_stats(self, stats):
         # Filters
         default_mmr = (0.0, 1250.0, 1500.0)
         min_time = 36000  # 1 hour
@@ -283,7 +284,13 @@ class Match(db.Model):
     def __repr__(self):
         return "<Match(match_id='{0}', server_name='{1}')>".format(self.match_id, self.server_name)
 
-    def update(self, server, poll_time):
+    def seen(self, seen_time):
+        if self.first_seen is None or self.first_seen > seen_time:
+            self.first_seen = seen_time
+        if self.last_seen is None or self.last_seen < seen_time:
+            self.last_seen = seen_time
+
+    def load_server_info(self, server):
         self.server_name = server["ServerName"]
         self.server_region = server["Region"]
         self.server_gametype = server["GameType"]
@@ -294,10 +301,6 @@ class Match(db.Model):
         self.server_tournament = server["DeveloperData"].get("bTournament", "false").lower() == "true"
         self.server_password_protected = len(server["DeveloperData"].get("PasswordHash", "")) > 0
         self.server_mmr_ignored = server["DeveloperData"].get("bIgnoreMMR", "FALSE").lower() == "true"
-
-        if self.first_seen is None:
-            self.first_seen = poll_time
-        self.last_seen = poll_time
 
     def calculate_stats(self, mmrs, pilot_levels, update_time):
         # Update stats
@@ -324,10 +327,11 @@ class MatchPlayer(db.Model):
     def __repr__(self):
         return "<MatchPlayer(match_id='{0}', player_id='{1}')>".format(self.match_id, self.player_id)
 
-    def update(self, poll_time):
-        if self.first_seen is None:
-            self.first_seen = poll_time
-        self.last_seen = poll_time
+    def seen(self, seen_time):
+        if self.first_seen is None or self.first_seen > seen_time:
+            self.first_seen = seen_time
+        if self.last_seen is None or self.last_seen < seen_time:
+            self.last_seen = seen_time
 
 
 class User(db.Model):

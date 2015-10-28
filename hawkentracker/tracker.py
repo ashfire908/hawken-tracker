@@ -95,7 +95,7 @@ def update_seen_players(players, poll_time):
             for guid in players:
                 player = Player(player_id=guid)
                 player.callsign = callsigns.get(guid, None)
-                player.update(poll_time)
+                player.seen(poll_time)
                 db.session.add(player)
 
         add_players(new_players, callsigns)
@@ -111,7 +111,8 @@ def update_seen_matches(matches, poll_time):
     found = []
     for match in Match.query.filter(Match.match_id.in_(matches.keys())):
         found.append(match.match_id)
-        match.update(matches[match.match_id], poll_time)
+        match.seen(poll_time)
+        match.load_server_info(matches[match.match_id])
         db.session.add(match)
 
         # Update match players
@@ -121,7 +122,8 @@ def update_seen_matches(matches, poll_time):
     logger.debug("[Matches] Adding new matches")
     for match_id in (match_id for match_id in matches.keys() if match_id not in found):
         match = Match(match_id=match_id)
-        match.update(matches[match.match_id], poll_time)
+        match.seen(poll_time)
+        match.load_server_info(matches[match.match_id])
         db.session.add(match)
 
         # Add match players
@@ -136,13 +138,13 @@ def update_match_players(match, players, poll_time):
         found = []
         for matchplayer in MatchPlayer.query.filter(MatchPlayer.match_id == match.match_id, MatchPlayer.player_id.in_(players)):
             found.append(matchplayer.player_id)
-            matchplayer.update(poll_time)
+            matchplayer.seen(poll_time)
             db.session.add(matchplayer)
 
         # Add new players
         for player in (player for player in players if player not in found):
             matchplayer = MatchPlayer(match_id=match.match_id, player_id=player)
-            matchplayer.update(poll_time)
+            matchplayer.seen(poll_time)
             db.session.add(matchplayer)
 
 
@@ -150,7 +152,7 @@ def add_match_players(match, players, poll_time):
     # Add new players
     for player in players:
         matchplayer = MatchPlayer(match_id=match.match_id, player_id=player)
-        matchplayer.update(poll_time)
+        matchplayer.seen(poll_time)
         db.session.add(matchplayer)
 
 
@@ -194,7 +196,7 @@ def update_player_stats(players, update_time):
     for player in players:
         if player.player_id in stats:
             player_stats = PlayerStats(player_id=player.player_id, snapshot_taken=update_time)
-            player_stats.update(stats[player.player_id])
+            player_stats.load_stats(stats[player.player_id])
             db.session.add(player_stats)
 
 
@@ -467,10 +469,6 @@ def update_tracker(flags, resume=False):
         db.session.commit()
 
     return journal
-
-
-
-
 
 
 def decode_rank(rank):
