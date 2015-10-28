@@ -17,11 +17,12 @@ logger = logging.getLogger(__name__)
 
 
 class CallsignConflictResolver:
-    def __init__(self, callsigns):
+    def __init__(self, logger, callsigns):
+        self.logger = logger
         self.callsigns = callsigns
 
     def __call__(self, f):
-        @HandleUniqueViolation(db.session, lambda e_orig: self.resolver(e_orig), "ix_players_callsign")
+        @HandleUniqueViolation(db.session, self.resolver, "ix_players_callsign")
         @wraps(f)
         def wrap(*args, **kwargs):
             return f(*args, **kwargs)
@@ -29,7 +30,7 @@ class CallsignConflictResolver:
         return wrap
 
     def resolver(self, e_orig):
-        logger.warn("[Players] Callsign conflict encountered, resolving...")
+        self.logger.warn("Callsign conflict encountered, resolving...")
 
         # Resolve callsigns
         conflicted_users = self.resolve_callsigns()
@@ -88,7 +89,7 @@ def update_seen_players(players, poll_time):
         logger.debug("[Players] Loading player callsigns")
         callsigns = api_wrapper(lambda: get_api().get_user_callsign(new_players, cache_skip=True))
 
-        @CallsignConflictResolver(callsigns)
+        @CallsignConflictResolver(logger, callsigns)
         def add_players(players, callsigns):
             # Add new players
             logger.debug("[Players] Adding new players")
@@ -225,7 +226,7 @@ def update_player_callsigns(players):
     # Load the callsigns
     callsigns = api_wrapper(lambda: get_api().get_user_callsign([player.player_id for player in players], cache_skip=True))
 
-    @CallsignConflictResolver(callsigns)
+    @CallsignConflictResolver(logger, callsigns)
     def update_callsigns(players, callsigns):
         # Iterate through the players
         count = 0
