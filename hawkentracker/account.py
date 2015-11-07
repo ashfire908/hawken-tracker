@@ -3,26 +3,11 @@
 
 from flask.ext.login import LoginManager, login_user as login, logout_user as logout
 from sqlalchemy.exc import IntegrityError
-from hawkentracker.mappings import CoreRole
-from hawkentracker.mailer import mail, welcome_email
+
 from hawkentracker.database import User, UserRole, AnonymousUser, db
-
-
-class InvalidLogin(Exception):
-    pass
-
-
-class InactiveAccount(Exception):
-    pass
-
-
-class EmailAlreadyExists(Exception):
-    pass
-
-
-class UsernameAlreadyExists(Exception):
-    pass
-
+from hawkentracker.exceptions import InvalidLogin, InactiveAccount, EmailAlreadyExists, UsernameAlreadyExists
+from hawkentracker.mailer import mail, welcome_email
+from hawkentracker.mappings import CoreRole
 
 login_manager = LoginManager()
 login_manager.anonymous_user = AnonymousUser

@@ -3,20 +3,18 @@
 
 import logging
 
-from redis import StrictRedis
 from flask import current_app, g
+from redis import StrictRedis
 from requests.exceptions import HTTPError, Timeout, ConnectionError
-from hawkenapi.util import verify_guid
+
 from hawkenapi.cache import Cache
 from hawkenapi.client import Client
 from hawkenapi.exceptions import ServiceUnavailable, InternalServerError
 from hawkenapi.interface import Session
+from hawkenapi.util import verify_guid
+from hawkentracker.exceptions import InterfaceException
 
 logger = logging.getLogger(__name__)
-
-
-class InterfaceException(Exception):
-    pass
 
 
 def create_redis_session():

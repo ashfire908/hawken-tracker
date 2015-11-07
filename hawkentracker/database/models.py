@@ -7,21 +7,14 @@ from datetime import datetime
 from flask import current_app
 from sqlalchemy.dialects import postgres
 
-from hawkentracker.util import random_hex, email_re, password_context
-from hawkentracker.mappings import LinkStatus, CoreRole, UpdateStatus, UpdateStage, UpdateFlag
 from hawkentracker.database import db
 from hawkentracker.database.util import NativeIntEnum, NativeStringEnum
+from hawkentracker.exceptions import TokenExpired, TokenInvalid
+from hawkentracker.mappings import LinkStatus, CoreRole, UpdateStatus, UpdateStage, UpdateFlag
+from hawkentracker.util import random_hex, email_re, password_context
 
-__all__ = ["TokenExpired", "TokenInvalid", "Player", "PlayerStats", "Match", "MatchPlayer", "User", "AnonymousUser",
-           "UserRole", "UserPermission", "PollLog", "UpdateJournal"]
-
-
-class TokenExpired(ValueError):
-    pass
-
-
-class TokenInvalid(ValueError):
-    pass
+__all__ = ["Player", "PlayerStats", "Match", "MatchPlayer", "User", "AnonymousUser", "UserRole", "UserPermission",
+           "PollLog", "UpdateJournal"]
 
 
 class Player(db.Model):
