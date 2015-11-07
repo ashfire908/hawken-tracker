@@ -2,6 +2,7 @@
 # Hawken Tracker - Data views
 
 from flask import request
+from requests import codes as status_codes
 from sqlalchemy.orm import contains_eager
 
 from hawkentracker.interface import get_api, get_player_id
@@ -61,7 +62,7 @@ def global_leaderboard():
         items.append(item)
 
     # Return it
-    return api_response({"data": items}, 200)
+    return api_response({"data": items}, status_codes.ok)
 
 
 @api.route("/player/<player>/matches", methods=["POST"])
@@ -70,18 +71,18 @@ def player_matches(player):
     guid, _ = get_player_id(player, False)
     if guid is None:
         # No such player
-        return api_response({"error": "No such player"}, 404)
+        return api_response({"error": "No such player"}, status_codes.not_found)
 
     # Load the player
     player = Player.query.get(guid)
 
     if player is None:
         # No such player tracked
-        return api_response({"error": "No tracked player"}, 404)
+        return api_response({"error": "No tracked player"}, status_codes.not_found)
 
     if not permissions_view.player.player(player.player_id).match.list:
         # Player's matches are private
-        return api_response({"error": "Player matches are private"}, 401)
+        return api_response({"error": "Player matches are private"}, status_codes.forbidden)
 
     # Parse the request info
     request_info = parse_serverside(request.form)
@@ -156,4 +157,4 @@ def player_matches(player):
             data["recordsFiltered"] += 1
 
     # Return it
-    return api_response(data, 200)
+    return api_response(data, status_codes.ok)
