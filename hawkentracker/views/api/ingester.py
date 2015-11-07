@@ -4,7 +4,7 @@
 from flask import request
 from requests import codes as status_codes
 
-from hawkentracker.events import handle_event
+from hawkentracker.events import EventIngester
 from hawkentracker.views.api import api, api_response
 
 
@@ -20,13 +20,9 @@ def events_ingester():
         return api_response({"error": "invalid_payload"}, status_codes.bad_request)
 
     # Run event handlers
-    triggered, failed = handle_event(payload)
+    result = EventIngester.process_event(payload)
 
     # Return result
-    result = {
-        "triggered": triggered,
-        "failed": failed
-    }
     if result["failed"] > 0:
         status_code = status_codes.internal_server_error
     else:

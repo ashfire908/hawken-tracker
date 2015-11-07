@@ -6,7 +6,7 @@ from enum import Enum, IntEnum, unique
 from hawkentracker.util import CaseInsensitiveDict
 
 
-# Enums
+# Tracker Enums
 @unique
 class UpdateFlag(Enum):
     all_players = "players"
@@ -60,6 +60,16 @@ class CoreRole(IntEnum):
     anonymous = 1
     unconfirmed = 2
     user = 3
+
+
+@unique
+class IngesterStatus(str, Enum):
+    unset = "unset"
+    processed = "processed"
+    failed = "failed"
+    skipped = "skipped"
+    error = "error"
+
 
 # Redis ranked fields
 ranking_fields = ("mmr", "time_played", "xp", "xp_per_min", "hc", "hc_per_min", "kda", "kill_steal_ratio",

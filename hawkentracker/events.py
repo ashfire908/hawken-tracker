@@ -1,23 +1,28 @@
 # -*- coding: utf-8 -*-
 # Hawken Tracker - Events Ingester
 
+import sys
 import logging
+import itertools
+import traceback
 from datetime import datetime, timezone
 
 from hawkentracker.database import Match, Player, db, MatchPlayer
+from hawkentracker.exceptions import ServerNotFound
 from hawkentracker.interface import api_wrapper, get_api
+from hawkentracker.mappings import IngesterStatus
 from hawkentracker.tracker import CallsignConflictResolver
 from hawkentracker.util import DEFAULT_GUID
 
 logger = logging.getLogger(__name__)
 
-event_ingesters = []
-
 
 class EventIngester:
-    def __init__(self, name, handler, filters=None):
+    ingesters = []
+
+    def __init__(self, name, ingester, filters=None):
         self.name = name
-        self.handler = handler
+        self.ingester = ingester
         self.filters = filters
 
     def accepts(self, event):
@@ -42,34 +47,64 @@ class EventIngester:
     def ingest(self, event):
         try:
             with db.session.no_autoflush:
-                result = self.handler(event)
+                result = self.ingester(event)
 
             db.session.commit()
-            return result
+
+            if not isinstance(result, dict) or "status" not in result or result["status"] == IngesterStatus.unset:
+                logger.warn("Malformed result from ingester '{0}'.".format(self.name))
         except:
-            logger.exception("Handler {0} failed to ingest event".format(self.name))
-            return False
+            logger.exception("Ingester '{0}' failed to ingest event.".format(self.name))
+
+            exc_type, exc_value, exc_tb = sys.exc_info()
+
+            tb_list = itertools.chain.from_iterable(line.rstrip().split("\n") for line in traceback.format_tb(exc_tb))
+
+            result = {
+                "status": IngesterStatus.error,
+                "exception": traceback.format_exception_only(exc_type, exc_value)[0].rstrip(),
+                "traceback": [line[2:] for line in tb_list]
+            }
+
+        return result
 
     @staticmethod
     def register(name, filters=None):
         def decorator(func):
-            event_ingesters.append(EventIngester(name, func, filters))
+            if name in (ingester.name for ingester in EventIngester.ingesters):
+                raise ValueError("Ingester already registered with name '{0}'".format(name))
+            EventIngester.ingesters.append(EventIngester(name, func, filters))
             return func
 
         return decorator
 
+    @staticmethod
+    def process_event(event):
+        result = {
+            "triggered": 0,
+            "processed": 0,
+            "failed": 0,
+            "ingesters": {}
+        }
 
-def handle_event(event):
-    triggered = 0
-    failed = 0
+        for ingester in EventIngester.ingesters:
+            if ingester.accepts(event):
+                ingest_result = ingester.ingest(event)
 
-    for ingester in event_ingesters:
-        if ingester.accepts(event):
-            if not ingester.ingest(event):
-                failed += 1
-            triggered += 1
+                # Update response
+                result["triggered"] += 1
+                if ingest_result["status"] == IngesterStatus.processed:
+                    result["processed"] += 1
+                elif ingest_result["status"] in (IngesterStatus.failed, IngesterStatus.error):
+                    result["failed"] += 1
 
-    return triggered, failed
+                result["ingesters"][ingester.name] = ingest_result
+
+        return result
+
+    @staticmethod
+    def new_result():
+        return {"status": IngesterStatus.unset}
 
 
 # Match started/ended events
@@ -104,10 +139,10 @@ def get_or_create_match(match_id, server_id):
         server_info = api_wrapper(lambda: get_api().get_server(server_id, cache_skip=True))
         if server_info is None:
             # Server info required to create match
-            raise RuntimeError("Server info required to create match, but server cannot be found.")
+            raise ServerNotFound(server_id)
         if server_info["MatchId"] != match_id:
             # Server has already moved to new match
-            raise RuntimeError("Unable to create match from server info: Server is reporting a different match id")
+            raise ServerNotFound(server_id, match_id=match_id)
         match = Match(match_id=match_id)
         match.load_server_info(server_info)
 
@@ -138,6 +173,8 @@ def match_update_players(players, event_time):
 
 @EventIngester.register("match_started", {"Verb": "Started", "Subject.Type": "Match", "Producer.Type": "HawkenGameServer"})
 def match_started_event(event):
+    result = EventIngester.new_result()
+
     match_id = event["Subject"]["Id"]
     server_id = event["Data"]["ServerListingGuid"]
     event_time = datetime.fromtimestamp(float(event["TimeCreated"]), timezone.utc)
@@ -146,7 +183,21 @@ def match_started_event(event):
     players, active_players, inactive_players = match_parse_players(event["Data"])
 
     # Mark match as seen and load event data
-    match = get_or_create_match(match_id, server_id)
+    try:
+        match = get_or_create_match(match_id, server_id)
+    except ServerNotFound as e:
+        result["status"] = IngesterStatus.failed
+        if e.match_id is None:
+            result["message"] = "Cannot ingest: Match not yet seen and could not find server"
+        else:
+            result["message"] = "Cannot ingest: Match not yet seen and server has different match"
+        return result
+
+    if match.first_seen is None:
+        result["message"] = "Match created"
+    else:
+        result["message"] = "Match updated"
+
     match.seen(event_time)
     match.load_match_started(event["Data"])
     db.session.add(match)
@@ -178,11 +229,14 @@ def match_started_event(event):
         match_player.load_match_started(data, True)
         db.session.add(match_player)
 
-    return True
+    result["status"] = IngesterStatus.processed
+    return result
 
 
 @EventIngester.register("match_ended", {"Verb": "Ended", "Subject.Type": "Match", "Producer.Type": "HawkenGameServer"})
 def match_ended_event(event):
+    result = EventIngester.new_result()
+
     match_id = event["Subject"]["Id"]
     server_id = event["Data"]["ServerListingGuid"]
     event_time = datetime.fromtimestamp(float(event["TimeCreated"]), timezone.utc)
@@ -191,7 +245,21 @@ def match_ended_event(event):
     players, active_players, inactive_players = match_parse_players(event["Data"])
 
     # Mark match as seen and load event data
-    match = get_or_create_match(match_id, server_id)
+    try:
+        match = get_or_create_match(match_id, server_id)
+    except ServerNotFound as e:
+        result["status"] = IngesterStatus.failed
+        if e.match_id is None:
+            result["message"] = "Cannot ingest: Match not yet seen and could not find server"
+        else:
+            result["message"] = "Cannot ingest: Match not yet seen and server has different match"
+        return result
+
+    if match.first_seen is None:
+        result["message"] = "Match created"
+    else:
+        result["message"] = "Match updated"
+
     match.seen(event_time)
     match.load_match_ended(event["Data"])
     db.session.add(match)
@@ -223,4 +291,5 @@ def match_ended_event(event):
         match_player.load_match_ended(data, True)
         db.session.add(match_player)
 
-    return True
+    result["status"] = IngesterStatus.processed
+    return result

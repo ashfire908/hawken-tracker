@@ -28,3 +28,10 @@ class TokenExpired(ValueError):
 
 class TokenInvalid(ValueError):
     pass
+
+
+class ServerNotFound(Exception):
+    def __init__(self, server_id, match_id=None):
+        self.server_id = server_id
+        self.match_id = match_id
+        super().__init__("Server {0} not found".format(self.server_id))
