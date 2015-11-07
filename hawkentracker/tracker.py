@@ -254,6 +254,10 @@ def update_matches(last, journal):
                                    journal=journal,
                                    logger=logger,
                                    logger_prefix="[Matches]"):
+        # Only update ended matches
+        if match.match_ended is None:
+            continue
+
         # Update the stats
         update_match_stats(match, journal.start)
 
@@ -262,14 +266,17 @@ def update_matches(last, journal):
 
 def update_match_stats(match, update_time):
     # Get the player stats for the match
-    stats = db.session.query(PlayerStats.mmr, PlayerStats.pilot_level).\
-                       join(MatchPlayer, PlayerStats.player_id == MatchPlayer.player_id).\
-                       filter(MatchPlayer.match_id == match.match_id).all()
+    stats = db.session.query(MatchPlayer.player_mmr, PlayerStats.pilot_level).\
+                       join(PlayerStats, MatchPlayer.player_id == PlayerStats.player_id).\
+                       filter(MatchPlayer.match_id == match.match_id).\
+                       filter(db.or_(MatchPlayer.started_with.is_(True), MatchPlayer.ended_with.is_(True))).all()
 
     if len(stats) > 0:
+        not_none = lambda value: value is not None
+
         # Unpack and update match stats
-        mmrs, levels = zip(*stats)
-        match.calculate_stats([mmr for mmr in mmrs if mmr is not None], levels, update_time)
+        mmrs, pilot_levels = zip(*stats)
+        match.calculate_stats(list(filter(not_none, mmrs)), list(filter(not_none, pilot_levels)), update_time)
         db.session.add(match)
 
 
