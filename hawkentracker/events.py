@@ -84,6 +84,12 @@ class EventIngester:
         return decorator
 
     @staticmethod
+    def validate_event(event):
+        required_fields = ("Data", "Producer", "Subject", "Target", "Timestamp", "Verb")
+
+        return event and all((required_field in event for required_field in required_fields))
+
+    @staticmethod
     def process_event(event):
         result = {
             "triggered": 0,
