@@ -181,18 +181,16 @@ def match_update_players(players, event_time):
         add_players(new_players, callsigns)
 
 
-@EventIngester.register("match_started", {"Verb": "Started", "Subject.Type": "Match", "Producer.Type": "HawkenGameServer"})
-def match_started_event(event):
+@EventIngester.register("match_start_end", {"Verb": ("Started", "Ended"), "Subject.Type": "Match", "Producer.Type": "HawkenGameServer"})
+def match_start_end_event(event):
     result = EventIngester.new_result()
 
     match_id = event["Subject"]["Id"]
+    match_started = event["Verb"] == "Started"
     server_id = event["Data"]["ServerListingGuid"]
     event_time = datetime.utcfromtimestamp(float(event["Data"]["TimeCreated"]))
 
-    # Parse the players
-    players, active_players, inactive_players = match_parse_players(event["Data"])
-
-    # Mark match as seen and load event data
+    # Load match
     try:
         match = get_or_create_match(match_id, server_id)
     except ServerNotFound as e:
@@ -203,13 +201,22 @@ def match_started_event(event):
             result["message"] = "Cannot ingest: Match not yet seen and server has different match"
         return result
 
-    if match.first_seen is None:
-        result["message"] = "Match created"
-    else:
-        result["message"] = "Match updated"
 
+    # Set match status
+    if db.inspect(match).transient:
+        result["match_status"] = "created"
+    else:
+        result["match_status"] = "updated"
+
+    # Parse the players
+    players, active_players, inactive_players = match_parse_players(event["Data"])
+
+    # Mark match as seen and load event data
     match.seen(event_time)
-    match.load_match_started(event["Data"])
+    if match_started:
+        match.load_match_started(event["Data"])
+    else:
+        match.load_match_ended(event["Data"])
     db.session.add(match)
 
     # Update players seen data
@@ -221,69 +228,10 @@ def match_started_event(event):
 
     # Update existing inactive players
     for match_player, data in ((match_players[guid], data) for guid, data in inactive_players.items() if guid in match_players):
-        match_player.load_match_started(data, False)
-        db.session.add(match_player)
-
-    # Since we don't know when inactive players were in the match, we don't add them here.
-
-    # Update existing active players
-    for match_player, data in ((match_players[guid], data) for guid, data in active_players.items() if guid in match_players):
-        match_player.seen(event_time)
-        match_player.load_match_started(data, True)
-        db.session.add(match_player)
-
-    # Add new active players
-    for guid, data in ((guid, data) for guid, data in active_players.items() if guid not in match_players):
-        match_player = MatchPlayer(match_id=match_id, player_id=guid)
-        match_player.seen(event_time)
-        match_player.load_match_started(data, True)
-        db.session.add(match_player)
-
-    result["status"] = IngesterStatus.processed
-    return result
-
-
-@EventIngester.register("match_ended", {"Verb": "Ended", "Subject.Type": "Match", "Producer.Type": "HawkenGameServer"})
-def match_ended_event(event):
-    result = EventIngester.new_result()
-
-    match_id = event["Subject"]["Id"]
-    server_id = event["Data"]["ServerListingGuid"]
-    event_time = datetime.utcfromtimestamp(float(event["Data"]["TimeCreated"]))
-
-    # Parse the players
-    players, active_players, inactive_players = match_parse_players(event["Data"])
-
-    # Mark match as seen and load event data
-    try:
-        match = get_or_create_match(match_id, server_id)
-    except ServerNotFound as e:
-        result["status"] = IngesterStatus.failed
-        if e.match_id is None:
-            result["message"] = "Cannot ingest: Match not yet seen and could not find server"
+        if match_started:
+            match_player.load_match_started(data, False)
         else:
-            result["message"] = "Cannot ingest: Match not yet seen and server has different match"
-        return result
-
-    if match.first_seen is None:
-        result["message"] = "Match created"
-    else:
-        result["message"] = "Match updated"
-
-    match.seen(event_time)
-    match.load_match_ended(event["Data"])
-    db.session.add(match)
-
-    # Update players seen data
-    match_update_players(players, event_time)
-
-    # Get match players
-    query = MatchPlayer.query.filter(MatchPlayer.match_id == match_id).filter(MatchPlayer.player_id.in_(players))
-    match_players = {match_player.player_id: match_player for match_player in query.all()}
-
-    # Update existing inactive players
-    for match_player, data in ((match_players[guid], data) for guid, data in inactive_players.items() if guid in match_players):
-        match_player.load_match_ended(data, False)
+            match_player.load_match_ended(data, False)
         db.session.add(match_player)
 
     # Since we don't know when inactive players were in the match, we don't add them here.
@@ -291,15 +239,25 @@ def match_ended_event(event):
     # Update existing active players
     for match_player, data in ((match_players[guid], data) for guid, data in active_players.items() if guid in match_players):
         match_player.seen(event_time)
-        match_player.load_match_ended(data, True)
+        if match_started:
+            match_player.load_match_started(data, True)
+        else:
+            match_player.load_match_ended(data, True)
         db.session.add(match_player)
 
     # Add new active players
     for guid, data in ((guid, data) for guid, data in active_players.items() if guid not in match_players):
         match_player = MatchPlayer(match_id=match_id, player_id=guid)
         match_player.seen(event_time)
-        match_player.load_match_ended(data, True)
+        if match_started:
+            match_player.load_match_started(data, True)
+        else:
+            match_player.load_match_ended(data, True)
         db.session.add(match_player)
 
     result["status"] = IngesterStatus.processed
+    if match_started:
+        result["message"] = "Processed match started event"
+    else:
+        result["message"] = "Processed match ended event"
     return result
