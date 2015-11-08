@@ -42,6 +42,8 @@ class DefaultSettings:
     USERNAME_MAX_LENGTH = 32
     PASSWORD_MIN_LENGTH = 1
     PASSWORD_MAX_LENGTH = 64
+    INGEST_USER = None
+    INGEST_PASS = None
 
 
 def parse_env_value(value):
