@@ -218,6 +218,12 @@ def match_start_end_event(event):
             result["message"] = "Cannot ingest: Match not yet seen and server has different match"
         return result
 
+    if (match_started and match.match_started is not None) or (not match_started and match.match_ended is not None):
+        # Don't replay events
+        logger.warn("Already ingested match start/end event, skipping... [Match {0}]".format(match_id))
+        result["status"] = IngesterStatus.skipped
+        result["message"] = "Event already ingested for '{0}'".format(match_id)
+        return result
 
     # Set match status
     if db.inspect(match).transient:
