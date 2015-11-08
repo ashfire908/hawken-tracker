@@ -2,7 +2,7 @@
 # Hawken Tracker - Database Models
 
 import statistics
-from datetime import datetime, timezone
+from datetime import datetime
 
 from flask import current_app
 from sqlalchemy.dialects import postgres
@@ -310,13 +310,13 @@ class Match(db.Model):
         self.server_mmr_ignored = server["DeveloperData"].get("bIgnoreMMR", "FALSE").lower() == "true"
 
     def load_match_started(self, event_data):
-        self.match_started = datetime.fromtimestamp(float(event_data["TimeCreated"]), timezone.utc)
+        self.match_started = datetime.utcfromtimestamp(float(event_data["TimeCreated"]))
         self.players_started = int(event_data["Num_Players"])
         self.players_started_inactive = int(event_data["Num_Players_Inactive"])
         self.bots_started = int(event_data["Num_Bots"])
 
     def load_match_ended(self, event_data):
-        self.match_ended = datetime.fromtimestamp(float(event_data["TimeCreated"]), timezone.utc)
+        self.match_ended = datetime.utcfromtimestamp(float(event_data["TimeCreated"]))
         self.players_ended = int(event_data["Num_Players"])
         self.players_ended_inactive = int(event_data["Num_Players_Inactive"])
         self.bots_ended = int(event_data["Num_Bots"])

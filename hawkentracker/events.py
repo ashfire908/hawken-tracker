@@ -5,7 +5,7 @@ import sys
 import logging
 import itertools
 import traceback
-from datetime import datetime, timezone
+from datetime import datetime
 
 from hawkentracker.database import Match, Player, db, MatchPlayer
 from hawkentracker.exceptions import ServerNotFound
@@ -112,14 +112,14 @@ def match_parse_players(data):
     # Parse players
     active_players = {}
     for i in range(int(data["Num_Players"])):
-        player_data = {k.split(".", 1)[-1]: v for k, v in data if k.startswith("Player%i" % i)}
+        player_data = {k.split(".", 1)[-1]: v for k, v in data.items() if k.startswith("Player%i" % i)}
         # Make sure it's not a bot
         if player_data["UserID"] != DEFAULT_GUID:
             active_players[player_data["UserID"]] = player_data
 
     inactive_players = {}
     for i in range(int(data["Num_Players_Inactive"])):
-        player_data = {k.split(".", 1)[-1]: v for k, v in data if k.startswith("InactivePlayer%i" % i)}
+        player_data = {k.split(".", 1)[-1]: v for k, v in data.items() if k.startswith("InactivePlayer%i" % i)}
         # Make sure it's not a bot
         if player_data["UserID"] != DEFAULT_GUID:
             inactive_players[player_data["UserID"]] = player_data
@@ -146,11 +146,13 @@ def get_or_create_match(match_id, server_id):
         match = Match(match_id=match_id)
         match.load_server_info(server_info)
 
+    return match
+
 
 def match_update_players(players, event_time):
     existing_players = []
     for player in Player.query.filter(Player.player_id.in_(players)).all():
-        existing_players.append(player.id)
+        existing_players.append(player.player_id)
         player.seen(event_time)
         db.session.add(player)
 
@@ -177,7 +179,7 @@ def match_started_event(event):
 
     match_id = event["Subject"]["Id"]
     server_id = event["Data"]["ServerListingGuid"]
-    event_time = datetime.fromtimestamp(float(event["TimeCreated"]), timezone.utc)
+    event_time = datetime.utcfromtimestamp(float(event["Data"]["TimeCreated"]))
 
     # Parse the players
     players, active_players, inactive_players = match_parse_players(event["Data"])
@@ -207,7 +209,7 @@ def match_started_event(event):
 
     # Get match players
     query = MatchPlayer.query.filter(MatchPlayer.match_id == match_id).filter(MatchPlayer.player_id.in_(players))
-    match_players = {match_player.id: match_player for match_player in query.all()}
+    match_players = {match_player.player_id: match_player for match_player in query.all()}
 
     # Update existing inactive players
     for match_player, data in ((match_players[guid], data) for guid, data in inactive_players.items() if guid in match_players):
@@ -239,7 +241,7 @@ def match_ended_event(event):
 
     match_id = event["Subject"]["Id"]
     server_id = event["Data"]["ServerListingGuid"]
-    event_time = datetime.fromtimestamp(float(event["TimeCreated"]), timezone.utc)
+    event_time = datetime.utcfromtimestamp(float(event["Data"]["TimeCreated"]))
 
     # Parse the players
     players, active_players, inactive_players = match_parse_players(event["Data"])
@@ -269,7 +271,7 @@ def match_ended_event(event):
 
     # Get match players
     query = MatchPlayer.query.filter(MatchPlayer.match_id == match_id).filter(MatchPlayer.player_id.in_(players))
-    match_players = {match_player.id: match_player for match_player in query.all()}
+    match_players = {match_player.player_id: match_player for match_player in query.all()}
 
     # Update existing inactive players
     for match_player, data in ((match_players[guid], data) for guid, data in inactive_players.items() if guid in match_players):
