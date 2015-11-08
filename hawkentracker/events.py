@@ -36,9 +36,14 @@ class EventIngester:
                 while len(path) > 0:
                     event_data = event_data[path.pop(0)]
 
-                # TODO: Support other conditions besides equality
-                if event_data != value:
-                    return False
+                if isinstance(value, tuple):
+                    # List of acceptable values
+                    if event_data not in value:
+                        return False
+                else:
+                    # Direct comparison
+                    if event_data != value:
+                        return False
             except KeyError:
                 return False
 
