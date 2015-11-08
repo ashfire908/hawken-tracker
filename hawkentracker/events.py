@@ -145,6 +145,9 @@ def get_or_create_match(match_id, server_id):
             raise ServerNotFound(server_id, match_id=match_id)
         match = Match(match_id=match_id)
         match.load_server_info(server_info)
+    elif match.server_id == DEFAULT_GUID:
+        # Backfill server id
+        match.server_id = server_id
 
     return match
 
