@@ -114,22 +114,39 @@ class EventIngester:
 
 # Match started/ended events
 def match_parse_players(data):
+    bots_as_players = 0
+
     # Parse players
     active_players = {}
-    for i in range(int(data["Num_Players"])):
-        player_data = {k.split(".", 1)[-1]: v for k, v in data.items() if k.startswith("Player%i" % i)}
+    for i in range(12):
+        player_data = {k.split(".", 1)[1]: v for k, v in data.items() if k.startswith("Player%i." % i)}
+        # Make sure we found a player
+        if not player_data:
+            continue
+
         # Make sure it's not a bot
         if player_data["UserID"] != DEFAULT_GUID:
             active_players[player_data["UserID"]] = player_data
+        else:
+            bots_as_players += 1
 
     inactive_players = {}
-    for i in range(int(data["Num_Players_Inactive"])):
-        player_data = {k.split(".", 1)[-1]: v for k, v in data.items() if k.startswith("InactivePlayer%i" % i)}
+    for i in range(12):
+        player_data = {k.split(".", 1)[1]: v for k, v in data.items() if k.startswith("InactivePlayer%i." % i)}
+        # Make sure we found a player
+        if not player_data:
+            continue
+
         # Make sure it's not a bot
         if player_data["UserID"] != DEFAULT_GUID:
             inactive_players[player_data["UserID"]] = player_data
 
     players = set(list(active_players.keys()) + list(inactive_players.keys()))
+
+    # Calculate our own player/bot counts
+    data["Num_Players"] = str(len(active_players))
+    data["Num_Players_Inactive"] = str(len(inactive_players))
+    data["Num_Bots"] = str(bots_as_players)
 
     return players, active_players, inactive_players
 
