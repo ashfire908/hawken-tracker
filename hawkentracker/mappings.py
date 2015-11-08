@@ -71,6 +71,90 @@ class IngesterStatus(str, Enum):
     error = "error"
 
 
+# Event enums/mappings
+@unique
+class WinReason(str, Enum):
+    # These aren't technically lowercase, but we convert it to lower because of TimeLimit/timelimit.
+    team_score_limit = "teamscorelimit"
+    time_limit = "timelimit"
+    triggered = "triggered"
+    base_destroyed = "basedestroyed"
+    no_players = "noplayers"
+
+
+@unique
+class GameType(IntEnum):
+    siege = 0
+    deathmatch = 1
+    team_deathmatch = 2
+    # unused = 3
+    missile_assault = 4
+    horde_deprecated = 5
+    asymmetrical_siege = 6
+    coop_bot_destruction = 7
+    capture_the_flag = 8
+    any = 9  # ???
+    vr_training = 10
+    coop_team_deathmatch = 11
+    explore = 12
+    invalid = 99
+
+
+@unique
+class GameTypeStorm(str, Enum):
+    siege = "HawkenSG"
+    deathmatch = "HawkenDM"
+    team_deathmatch = "HawkenTDM"
+    missile_assault = "HawkenMA"
+    # horde_deprecated = unknown
+    # asymmetrical_siege = unknown
+    coop_bot_destruction = "HawkenCoOp"
+    # capture_the_flag = unknown
+    # any = unknown
+    # vr_training = unknown
+    coop_team_deathmatch = "HawkenBotsTdm"
+    # explore = unknown
+
+    # Not a real game type
+    entry_game = "R_EntryGame"
+
+
+@unique
+class Map(str, Enum):
+    uptown = "Alleys"
+    prosk = "Andromeda"
+    bunker = "Bunker"
+    facility = "Facility"
+    fight_club = "fightclub"
+    last_eco = "LastEco"
+    last_eco_winter = "lasteco-winter"
+    bazaar = "Sahara"
+    origin = "Titan"
+    tutorial_vr = "tutorialvr"
+    front_line = "Valkirie"
+    wreckage = "Wreckage"
+    main_menu = "RobotsMainMenu"
+
+
+@unique
+class MapStorm(str, Enum):
+    uptown = "VS-Alleys"
+    prosk = "VS-Andromeda"
+    bunker = "VS-Bunker"
+    facility = "VS-Facility"
+    facility_coop = "CO-Facility"
+    fight_club = "vs-fightclub"
+    last_eco = "VS-LastEco"
+    last_eco_winter = "vs-lasteco-winter"
+    bazaar = "VS-Sahara"
+    origin = "VS-Titan"
+    tutorial_vr = "TR-TutorialVR"
+    front_line = "VS-Valkirie"
+    front_line_coop = "CO-Valkirie"
+    wreckage = "VS-Wreckage"
+    main_menu = "RobotsMainMenu"
+
+
 # Redis ranked fields
 ranking_fields = ("mmr", "time_played", "xp", "xp_per_min", "hc", "hc_per_min", "kda", "kill_steal_ratio",
                   "critical_assist_ratio", "damage_ratio", "win_loss", "dm_win_loss", "tdm_win_loss", "ma_win_loss",
