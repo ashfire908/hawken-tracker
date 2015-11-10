@@ -10,7 +10,7 @@ from requests.exceptions import HTTPError, Timeout, ConnectionError
 from hawkenapi.cache import Cache
 from hawkenapi.client import Client
 from hawkenapi.exceptions import ServiceUnavailable, InternalServerError
-from hawkenapi.interface import Session
+from hawkenapi.interface import ApiSession
 from hawkenapi.util import verify_guid
 from hawkentracker.exceptions import InterfaceException
 
@@ -38,7 +38,7 @@ def get_api():
     client = g.get("api_client", None)
     if client is None:
         # Set up the client
-        client = Client(session=Session(host=current_app.config["HAWKEN_API_HOST"], scheme=current_app.config["HAWKEN_API_SCHEME"], timeout=current_app.config["HAWKEN_API_TIMEOUT"]))
+        client = Client(session=ApiSession(host=current_app.config["HAWKEN_API_HOST"], scheme=current_app.config["HAWKEN_API_SCHEME"], timeout=current_app.config["HAWKEN_API_TIMEOUT"]))
         client.cache = Cache("hawkenapi", url=current_app.config["REDIS_URL"])
 
         redis = get_redis()
