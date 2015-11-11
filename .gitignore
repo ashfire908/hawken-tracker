@@ -14,3 +14,6 @@ venv/
 
 # Program data
 instance/
+
+# Project data
+wiki/
