@@ -6,7 +6,6 @@ from flask import Blueprint, flash, render_template
 from hawkenapi.util import verify_match
 from hawkentracker.interface import get_api
 from hawkentracker.mappings import region_names, gametype_names, map_names
-from hawkentracker.permissions import permissions_view
 from hawkentracker.helpers import to_last, access_denied
 from hawkentracker.database import Match
 
@@ -33,10 +32,6 @@ def view(id):
         flash("No match found for '{0}'.".format(id), "error")
         return to_last()
 
-    # Access check
-    if not permissions_view.match.match(match.match_id).view:
-        return access_denied("You do not have permission to view this match.")
-
     # Build the page info
     context = {
         "match": {
@@ -54,30 +49,21 @@ def view(id):
     }
 
     # Stats
-    if permissions_view.match.match(match.match_id).stats:
-        context["match"].update({
-            "mmr_avg": "{0:.2f}".format(match.mmr_avg),
-            "pilot_level_avg": "{0:.1f}".format(match.pilot_level_avg)
-        })
+    context["match"].update({
+        "mmr_avg": "{0:.2f}".format(match.mmr_avg),
+        "pilot_level_avg": "{0:.1f}".format(match.pilot_level_avg)
+    })
 
     # Players
-    if permissions_view.match.match(match.match_id).players:
-        context["players"] = []
+    context["players"] = []
 
-        for player in match.players:
-            if permissions_view.player.player(player.player_id).match.match(match.match_id).view:
-                player = {
-                    "name": player.player.callsign or player.player_id,
-                    "first_seen": player.first_seen.strftime("%Y-%m-%d %H:%M"),
-                    "last_seen": player.last_seen.strftime("%Y-%m-%d %H:%M")
-                }
-            else:
-                player = {
-                    "name": None,
-                    "first_seen": None,
-                    "last_seen": None
-                }
+    for player in match.players:
+        player = {
+            "name": player.player.callsign or player.player_id,
+            "first_seen": player.first_seen.strftime("%Y-%m-%d %H:%M"),
+            "last_seen": player.last_seen.strftime("%Y-%m-%d %H:%M")
+        }
 
-            context["players"].append(player)
+        context["players"].append(player)
 
     return render_template("match/view.jade", **context)

@@ -31,22 +31,6 @@ Jinja2==2.8
 # Flask-SQLAlchemy
 Flask-SQLAlchemy==2.1
 
-# Flask-Mail
-Flask-Mail==0.9.1
-blinker==1.4
-
-# Flask-Login
-Flask-Login==0.3.2
-
 # PyJade
 pyjade==3.1.0
 six==1.10.0
-
-# passlib
-passlib==1.6.5
-
-# WTForms
-WTForms==2.0.2
-
-# Flask-WTF
-Flask-WTF==0.12
