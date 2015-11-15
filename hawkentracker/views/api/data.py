@@ -8,7 +8,6 @@ from sqlalchemy.orm import contains_eager
 from hawkentracker.interface import get_api, get_player_id
 from hawkentracker.tracker import get_ranked_players, get_global_rank
 from hawkentracker.mappings import ranking_fields, region_names, gametype_names, map_names
-from hawkentracker.permissions import permissions_view
 from hawkentracker.helpers import parse_serverside
 from hawkentracker.database import Player, Match, MatchPlayer
 from hawkentracker.util import value_or_default
@@ -38,26 +37,16 @@ def global_leaderboard():
         item["rank"] = rankings[player.player_id]
 
         # Add player info
-        if permissions_view.player.player(player.player_id).leaderboard:
-            item["player"] = player.callsign or player.player_id
-            item["first_seen"] = player.first_seen.strftime("%Y-%m-%d %H:%M")
-            item["last_seen"] = player.last_seen.strftime("%Y-%m-%d %H:%M")
-            if permissions_view.player.player(player.player_id).region:
-                region = (player.home_region or player.common_region)
-                item["region"] = region_names.get(region, region)
-            else:
-                item["region"] = None
-        else:
-            item["player"] = None
-            item["first_seen"] = None
-            item["last_seen"] = None
-            item["region"] = None
+        item["player"] = player.callsign or player.player_id
+        item["first_seen"] = player.first_seen.strftime("%Y-%m-%d %H:%M")
+        item["last_seen"] = player.last_seen.strftime("%Y-%m-%d %H:%M")
+        region = player.common_region
+        item["region"] = region_names.get(region, region)
 
-        if permissions_view.player.player(player.player_id).stats.ranked:
-            for stat in additional:
-                if sort != stat:
-                    item[stat] = getattr(player.stats, stat)
-            item[sort] = getattr(player.stats, sort)
+        for stat in additional:
+            if sort != stat:
+                item[stat] = getattr(player.stats, stat)
+        item[sort] = getattr(player.stats, sort)
 
         items.append(item)
 
@@ -79,10 +68,6 @@ def player_matches(player):
     if player is None:
         # No such player tracked
         return api_response({"error": "No tracked player"}, status_codes.not_found)
-
-    if not permissions_view.player.player(player.player_id).match.list:
-        # Player's matches are private
-        return api_response({"error": "Player matches are private"}, status_codes.forbidden)
 
     # Parse the request info
     request_info = parse_serverside(request.form)
@@ -122,9 +107,6 @@ def player_matches(player):
 
     for match in matches:
         data["recordsTotal"] += 1
-
-        if not permissions_view.player.player(player.player_id).match.match(match.match_id).view:
-            continue
 
         # Add match info
         item = {

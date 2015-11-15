@@ -22,13 +22,10 @@ class DefaultSettings:
     SECRET_KEY = "DevelopmentKey"
     LOG_LEVEL = None
     LOG_FORMAT = "%(asctime)s %(message)s"
-    EMAIL_TOKEN_MAX_AGE = 172800
-    RESET_TOKEN_MAX_AGE = 172800
     SQLALCHEMY_DATABASE_URI = None
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     REDIS_URL = None
     REDIS_PREFIX = "hawkentracker"
-    REDIS_SESSION_LIFETIME = 86400
     HAWKEN_API_SCHEME = None
     HAWKEN_API_HOST = None
     HAWKEN_API_USER = None
@@ -38,10 +35,6 @@ class DefaultSettings:
     TRACKER_BATCH_SIZE = 500
     MATCH_STATS_THRESHOLD = 2
     RANK_PERCENT_THRESHOLD = 0.01
-    USERNAME_MIN_LENGTH = 1
-    USERNAME_MAX_LENGTH = 32
-    PASSWORD_MIN_LENGTH = 1
-    PASSWORD_MAX_LENGTH = 64
 
 
 def parse_env_value(value):

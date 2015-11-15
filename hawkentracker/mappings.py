@@ -31,36 +31,6 @@ class UpdateStage(IntEnum):
     global_rankings = 4
 
 
-@unique
-class LinkStatus(IntEnum):
-    none = 0
-    pending = 1
-    linked = 2
-
-
-@unique
-class JoinPrivacy(IntEnum):
-    open = 0
-    approval = 1
-    invite_only = 2
-
-
-@unique
-class Confirmation(IntEnum):
-    player = 0
-    group = 1
-    both = 2
-    player_blocked = 3
-    group_blocked = 4
-    both_blocked = 5
-
-
-@unique
-class CoreRole(IntEnum):
-    anonymous = 1
-    unconfirmed = 2
-    user = 3
-
 # Redis ranked fields
 ranking_fields = ("mmr", "time_played", "xp", "xp_per_min", "hc", "hc_per_min", "kda", "kill_steal_ratio",
                   "critical_assist_ratio", "damage_ratio", "win_loss", "dm_win_loss", "tdm_win_loss", "ma_win_loss",

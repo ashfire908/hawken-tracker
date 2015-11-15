@@ -13,16 +13,13 @@ block js
     else
         script(type="text/javascript", src=url_for("static", filename="js/jquery.dataTables.min.js"))
         script(type="text/javascript", src=url_for("static", filename="js/dataTables.bootstrap.min.js"))
-    if matches
-        script(type="text/javascript").
-            $(document).ready(function() {
-                setup_player_matches("#matches", "#{url_for('data.player_matches', player=info["name"])}");
-            });
+    script(type="text/javascript").
+        $(document).ready(function() {
+            setup_player_matches("#matches", "#{url_for('data.player_matches', player=info["name"])}");
+        });
 
 block content
     .page-header
-        if edit["settings"] or edit["blacklist"]
-            a.btn.btn-primary.pull-right(href=url_for('player.settings', target=info["name"])) Settings
         h1= info.name
 
 
@@ -39,67 +36,33 @@ block content
         dd= info.first_seen
         dt Last seen
         dd= info.last_seen
-        if info.home_region != None
-            dt Home region
-            if info.home_region == False
-                dd [Private]
-            else
-                dd= info.home_region
         if info.common_region != None
             dt Common region
-            if info.common_region == False
-                dd [Private]
-            else
-                dd= info.common_region
+            dd= info.common_region
 
-    if ranking
-        if ranking == None
-            .panel.panel-warning
-                .panel-heading No rankings found for player
-                .panel-body
-                    p This player has no rankings recorded in the tracker. This is because the player was only recently detected and has not had their rankings collected yet.
-                    if g.since_update
-                        p The last update occured #{g.last_update} ago.
-        else
-            dl.dl-horizontal
-                for k, v in ranking.items()
-                    dt= k
-                    dd
-                        if v[0]
-                            span.ranking= v[0]
-                        if v[1]
-                            span.label.label-primary.ranking-label= v[1]
-
-    if stats or mechs
-        h2 Stats
-        .panel.panel-info
-            .panel-heading Player stats are not implemented
+    if ranking == None
+        .panel.panel-warning
+            .panel-heading No rankings found for player
             .panel-body
-                p Player stats viewing has not been implemented yet. Sorry. :-/
+                p This player has no rankings recorded in the tracker. This is because the player was only recently detected and has not had their rankings collected yet.
+                if g.since_update
+                    p The last update occured #{g.last_update} ago.
+    else
+        dl.dl-horizontal
+            for k, v in ranking.items()
+                dt= k
+                dd
+                    if v[0]
+                        span.ranking= v[0]
+                    if v[1]
+                        span.label.label-primary.ranking-label= v[1]
 
-    if matches
-        h2 Matches
-        table#matches.table.table-striped.table-bordered
+    h2 Stats
+    .panel.panel-info
+        .panel-heading Player stats are not implemented
+        .panel-body
+            p Player stats viewing has not been implemented yet. Sorry. :-/
 
-    if groups
-        h2 Groups
-        .panel.panel-info
-                .panel-heading Groups are not implemented
-                .panel-body
-                    p Groups have not been implemented yet. Sorry. :-/
+    h2 Matches
+    table#matches.table.table-striped.table-bordered
 
-    if linked.user != None or linked.players != None
-        h2 Linked players
-        if linked.players != None
-            if linked.players | length == 0
-                p This player is not linked to any other players.
-            else
-                ul
-                    for player in linked.players
-                        li
-                            a(href=url_for("player.view", target=player))= player
-        if linked.user
-            p
-                | This player is linked to 
-                a(href=url_for("user.view", user=linked.user.user_id))= linked.user.name
-                | 's account.

@@ -4,17 +4,13 @@
 import statistics
 from datetime import datetime
 
-from flask import current_app
 from sqlalchemy.dialects import postgres
 
 from hawkentracker.database import db
 from hawkentracker.database.util import NativeIntEnum, NativeStringEnum
-from hawkentracker.exceptions import TokenExpired, TokenInvalid
-from hawkentracker.mappings import LinkStatus, CoreRole, UpdateStatus, UpdateStage, UpdateFlag
-from hawkentracker.util import random_hex, email_re, password_context
+from hawkentracker.mappings import UpdateStatus, UpdateStage, UpdateFlag
 
-__all__ = ["Player", "PlayerStats", "Match", "MatchPlayer", "User", "AnonymousUser", "UserRole", "UserPermission",
-           "PollLog", "UpdateJournal"]
+__all__ = ["Player", "PlayerStats", "Match", "MatchPlayer", "PollLog", "UpdateJournal"]
 
 
 class Player(db.Model):
@@ -27,45 +23,20 @@ class Player(db.Model):
     callsign = db.Column(db.String)
     first_seen = db.Column(db.DateTime, nullable=False)
     last_seen = db.Column(db.DateTime, nullable=False)
-    home_region = db.Column(db.String)
     common_region = db.Column(db.String)
-    link_user = db.Column(db.Integer, db.ForeignKey("users.user_id"), index=True)
-    link_status = db.Column(NativeIntEnum(LinkStatus), default=LinkStatus.none, nullable=False)
     opt_out = db.Column(db.Boolean)
     blacklisted = db.Column(db.Boolean, default=False, nullable=False)
     blacklist_reason = db.Column(db.String)
-    blacklist_by = db.Column(db.Integer, db.ForeignKey("users.user_id"))
-    view_privacy = db.Column(db.Integer)
-    region_privacy = db.Column(db.Integer)
-    leaderboard_privacy = db.Column(db.Integer)
-    ranking_privacy = db.Column(db.Integer)
-    ranked_stats_privacy = db.Column(db.Integer)
-    overall_stats_privacy = db.Column(db.Integer)
-    mech_stats_privacy = db.Column(db.Integer)
-    match_list_privacy = db.Column(db.Integer)
-    match_view_privacy = db.Column(db.Integer)
-    group_privacy = db.Column(db.Integer)
-    link_privacy = db.Column(db.Integer)
 
     matches = db.relationship("MatchPlayer", order_by="MatchPlayer.last_seen", backref=db.backref("player", uselist=False))
     stats = db.relationship("PlayerStats", uselist=False, order_by="PlayerStats.snapshot_taken")
     stats_history = db.relationship("PlayerStats", order_by="PlayerStats.snapshot_taken", backref=db.backref("player", uselist=False))
-    user = db.relationship("User", foreign_keys=[link_user], uselist=False, backref="players")
-    blacklister = db.relationship("User", foreign_keys=[blacklist_by])
 
     def seen(self, seen_time):
         if self.first_seen is None or self.first_seen > seen_time:
             self.first_seen = seen_time
         if self.last_seen is None or self.last_seen < seen_time:
             self.last_seen = seen_time
-
-    def link(self, user):
-        self.link_user = user.user_id
-        self.link_status = LinkStatus.linked
-
-    def unlink(self):
-        self.link_user = None
-        self.link_status = LinkStatus.none
 
     def __repr__(self):
         return "<Player(player_id='{0}')>".format(self.player_id)
@@ -325,262 +296,6 @@ class MatchPlayer(db.Model):
             self.first_seen = seen_time
         if self.last_seen is None or self.last_seen < seen_time:
             self.last_seen = seen_time
-
-
-class User(db.Model):
-    __tablename__ = "users"
-    __table_args__ = (
-        db.Index("ix_users_username", db.func.lower("username"), unique=True),
-        db.Index("ix_users_email", db.func.lower("email"), unique=True),
-        db.Index("ix_users_email_confirmation_for", db.func.lower("email_confirmation_for"), unique=True)
-    )
-
-    user_id = db.Column(db.Integer, autoincrement=True, primary_key=True)
-    username = db.Column(db.String, nullable=False)
-    email = db.Column(db.String, nullable=False)
-    password = db.Column(db.String, nullable=False)
-    creation = db.Column(db.DateTime, default=datetime.now, nullable=False)
-    locked = db.Column(db.Boolean, default=False, nullable=False)
-    lock_reason = db.Column(db.String)
-    lock_by = db.Column(db.Integer, db.ForeignKey("users.user_id"))
-    confirmed = db.Column(db.Boolean, default=False, nullable=False)
-    confirmed_at = db.Column(db.DateTime)
-    email_confirmation_for = db.Column(db.String)
-    email_confirmation_token = db.Column(db.String)
-    email_confirmation_sent_at = db.Column(db.DateTime)
-    password_reset_token = db.Column(db.String)
-    password_reset_sent_at = db.Column(db.DateTime)
-    role_id = db.Column(db.Integer, db.ForeignKey("user_roles.role_id"), nullable=False)
-    view_privacy = db.Column(db.Integer)
-    link_privacy = db.Column(db.Integer)
-
-    @property
-    def linked_players(self):
-        return [player.player_id for player in self.players if player.link_status == LinkStatus.linked]
-
-    def verify_password(self, password):
-        return password_context.verify(password, self.password)
-
-    def generate_email_confirmation(self, email):
-        if email == self.email:
-            # Initial confirmation
-            self.email_confirmation_for = None
-        else:
-            self.email_confirmation_for = email
-        self.email_confirmation_token = random_hex(16)
-        self.email_confirmation_sent_at = datetime.utcnow()
-
-        return self.email_confirmation_token
-
-    def verify_email_confirmation(self, email, token):
-        if not (self.email_confirmation_for is None and not self.confirmed) or self.email_confirmation_token != token:
-            raise TokenInvalid
-
-        if self.email_confirmation_sent_at is None:
-            raise TokenExpired
-
-        delta = (datetime.utcnow() - self.email_confirmation_sent_at).total_seconds()
-
-        if delta > current_app.config["EMAIL_TOKEN_MAX_AGE"]:
-            raise TokenExpired
-
-        self.confirmed = True
-        self.confirmed_at = datetime.utcnow()
-
-        self.email_confirmation_for = None
-        self.email_confirmation_token = None
-        self.email_confirmation_sent_at = None
-
-        # Autopromote user
-        if self.role == CoreRole.unconfirmed.value:
-            self.role = CoreRole.user.value
-
-    def generate_password_reset_token(self):
-        self.password_reset_token = random_hex(16)
-        self.password_reset_sent_at = datetime.utcnow()
-
-        return self.password_reset_token
-
-    def verify_password_reset(self, token):
-        if self.password_reset_token != token:
-            raise TokenInvalid
-
-        if self.password_reset_sent_at is None:
-            raise TokenExpired
-
-        delta = (datetime.utcnow() - self.password_reset_sent_at).total_seconds()
-
-        if delta > current_app.config["RESET_TOKEN_MAX_AGE"]:
-            raise TokenExpired
-
-        return True
-
-    def set_password(self, new_password):
-        self.password = new_password
-
-        self.password_reset_token = None
-        self.password_reset_sent_at = None
-
-    def reset_password(self, token, new_password):
-        if self.verify_password_reset(token):
-            self.set_password(new_password)
-
-    @db.validates("username")
-    def validate_username(self, key, username):
-        assert len(username) >= current_app.config["USERNAME_MIN_LENGTH"]
-        assert len(username) <= current_app.config["USERNAME_MAX_LENGTH"]
-        assert "@" not in username
-        return username
-
-    @db.validates("password")
-    def validate_password(self, key, password):
-        assert len(password) >= current_app.config["PASSWORD_MIN_LENGTH"]
-        assert len(password) <= current_app.config["PASSWORD_MAX_LENGTH"]
-        return password_context.encrypt(password)
-
-    @db.validates("email")
-    def validate_email(self, key, email):
-        assert email_re.match(email) is not None
-        assert self.email_confirmation_for != email
-        return email
-
-    @db.validates("email_confirmation_for")
-    def validate_email_confirmation_for(self, key, email):
-        if email is not None:
-            assert email_re.match(email) is not None
-            assert self.email != email
-        return email
-
-    @property
-    def is_authenticated(self):
-        return True
-
-    @property
-    def is_active(self):
-        return not self.locked
-
-    @property
-    def is_anonymous(self):
-        return False
-
-    def get_id(self):
-        return str(self.user_id)
-
-    def __repr__(self):
-        return "<User(user_id={0}, username='{1}')>".format(self.user_id, self.username)
-
-    @staticmethod
-    def by_username(username):
-        return User.query.filter(db.func.lower(User.username) == username.lower()).first()
-
-    @staticmethod
-    def by_email(email):
-        return User.query.filter(db.func.lower(User.email) == email.lower()).first()
-
-    @staticmethod
-    def by_pending_email(email):
-        return User.query.filter(db.func.lower(User.email_confirmation_for) == email.lower()).first()
-
-
-class AnonymousUser:
-    user_id = "anon"
-    username = None
-    email = None
-    password = None
-    creation = None
-    locked = False
-    lock_reason = None
-    lock_by = None
-    confirmed = False
-    confirmed_at = None
-    email_confirmation_for = None
-    email_confirmation_token = None
-    email_confirmation_sent_at = None
-    password_reset_token = None
-    password_reset_sent_at = None
-    role_id = CoreRole.anonymous.value
-    view_privacy = 100
-    link_privacy = 100
-
-    @property
-    def role_id(self):
-        return CoreRole.anonymous.value
-
-    @property
-    def role(self):
-        return UserRole.query.get(self.role_id)
-
-    @property
-    def players(self):
-        return []
-
-    @property
-    def linked_players(self):
-        return self.players
-
-    def verify_password(self, password):
-        raise NotImplementedError("Anonymous users cannot be modified")
-
-    def generate_email_confirmation(self, email):
-        raise NotImplementedError("Anonymous users cannot be modified")
-
-    def verify_email_confirmation(self, email, token):
-        raise NotImplementedError("Anonymous users cannot be modified")
-
-    def generate_password_reset_token(self):
-        raise NotImplementedError("Anonymous users cannot be modified")
-
-    def verify_password_reset(self, token):
-        raise NotImplementedError("Anonymous users cannot be modified")
-
-    def set_password(self, new_password):
-        raise NotImplementedError("Anonymous users cannot be modified")
-
-    def reset_password(self, token, new_password):
-        raise NotImplementedError("Anonymous users cannot be modified")
-
-    @property
-    def is_authenticated(self):
-        return False
-
-    @property
-    def is_active(self):
-        return not self.locked
-
-    @property
-    def is_anonymous(self):
-        return True
-
-    def get_id(self):
-        return str(self.user_id)
-
-    def __repr__(self):
-        return "<AnonymousUser>"
-
-
-class UserRole(db.Model):
-    __tablename__ = "user_roles"
-
-    role_id = db.Column(db.Integer, autoincrement=True, primary_key=True)
-    name = db.Column(db.String, unique=True, nullable=False)
-    superadmin = db.Column(db.Boolean, nullable=False)
-
-    users = db.relationship("User", backref=db.backref("role", uselist=False))
-    permissions = db.relationship("UserPermission", backref=db.backref("role", uselist=False))
-
-    def __repr__(self):
-        return "<UserRole(role_id={0}, name='{1}')>".format(self.role_id, self.name)
-
-
-class UserPermission(db.Model):
-    __tablename__ = "user_permissions"
-
-    role_id = db.Column(db.Integer, db.ForeignKey("user_roles.role_id"), primary_key=True, index=True)
-    permission = db.Column(db.String, primary_key=True)
-    power = db.Column(db.Integer, default=0)
-
-    def __repr__(self):
-        return "<UserPermission(role_id={0}, permission='{1}', power={2})>".format(self.role_id, self.permission, self.power)
 
 
 class PollLog(db.Model):
