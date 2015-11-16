@@ -422,8 +422,12 @@ def update_tracker(flags, resume=False):
     db.session.commit()
 
     try:
-        # Get the last completed update
-        last = UpdateJournal.last_completed()
+        # Get the start time from the last completed update
+        last_journal = UpdateJournal.last_completed()
+        if last_journal is None:
+            last = None
+        else:
+            last = last_journal.start
 
         with db.session.no_autoflush:
             if journal.stage == UpdateStage.not_started:

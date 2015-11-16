@@ -383,7 +383,7 @@ class UpdateJournal(db.Model):
         db.session.add(self)
 
     def __repr__(self):
-        return "<UpdateLog(start={0}, status={1}, stage={2})>".format(self.start, self.status, self.stage)
+        return "<UpdateJournal(start={0}, status={1}, stage={2})>".format(self.start, self.status, self.stage)
 
     @staticmethod
     def last():
@@ -391,7 +391,4 @@ class UpdateJournal(db.Model):
 
     @staticmethod
     def last_completed():
-        last = db.session.query(UpdateJournal.start).filter(UpdateJournal.status == UpdateStatus.complete).order_by(UpdateJournal.start.desc()).first()
-        if last is None:
-            return None
-        return last[0]
+        return db.session.query(UpdateJournal).filter(UpdateJournal.status == UpdateStatus.complete).order_by(UpdateJournal.start.desc()).first()

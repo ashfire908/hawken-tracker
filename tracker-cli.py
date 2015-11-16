@@ -64,11 +64,11 @@ def main(task, verbosity, debug, update_flags, resume):
 
             if verbosity == 0:
                 poll_time = poll.isoformat() if poll is not None else None
-                update_time = successful_update.isoformat() if successful_update is not None else None
+                update_time = successful_update.start.isoformat() if successful_update is not None else None
                 message("{0} {1}".format(poll_time, update_time))
             else:
                 message("Last poll: {0}".format(poll))
-                message("Last successful update: {0}".format(successful_update))
+                message("Last successful update: {0}".format(successful_update.start))
                 if update.status != UpdateStatus.complete:
                     if update.status == UpdateStatus.failed:
                         message("Last update was not successful.")
