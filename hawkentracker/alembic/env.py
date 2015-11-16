@@ -27,6 +27,7 @@ target_metadata = db.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
+
 def run_migrations_offline():
     """Run migrations in 'offline' mode.
 
@@ -39,10 +40,15 @@ def run_migrations_offline():
     script output.
 
     """
-    context.configure(url=current_app.config["SQLALCHEMY_DATABASE_URI"], target_metadata=target_metadata)
+    context.configure(
+        url=current_app.config["SQLALCHEMY_DATABASE_URI"],
+        target_metadata=target_metadata,
+        literal_binds=True
+    )
 
     with context.begin_transaction():
         context.run_migrations()
+
 
 def run_migrations_online():
     """Run migrations in 'online' mode.
@@ -51,17 +57,14 @@ def run_migrations_online():
     and associate a connection with the context.
 
     """
-    connection = db.engine.connect()
-    context.configure(
-                connection=connection,
-                target_metadata=target_metadata
-                )
+    with db.engine.connect() as connection:
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata
+        )
 
-    try:
         with context.begin_transaction():
             context.run_migrations()
-    finally:
-        connection.close()
 
 
 app = create_app()
