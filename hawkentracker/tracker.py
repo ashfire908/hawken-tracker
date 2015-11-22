@@ -2,6 +2,7 @@
 # Hawken Tracker - Player/Match Tracker
 
 import logging
+import itertools
 from datetime import datetime
 from functools import wraps
 
@@ -9,9 +10,10 @@ from sqlalchemy.orm import contains_eager
 from flask import current_app
 
 from hawkentracker.interface import get_api, api_wrapper, get_redis, format_redis_key
-from hawkentracker.database import db, Player, PlayerStats, Match, MatchPlayer, PollLog, UpdateJournal
+from hawkentracker.database import db, Player, PlayerStats, Match, MatchPlayer, PollJournal, UpdateJournal
 from hawkentracker.database.util import HandleUniqueViolation, windowed_query
-from hawkentracker.mappings import ranking_fields, region_groupings, UpdateFlag, UpdateStatus, UpdateStage
+from hawkentracker.mappings import PollFlag, PollStatus, PollStage, UpdateFlag, UpdateStatus, UpdateStage,\
+    ranking_fields, region_groupings
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +73,29 @@ class CallsignConflictResolver:
         return db.func.lower(Player.callsign).in_([callsign.lower() for callsign in callsigns.values()])
 
 
-def update_seen_players(players, poll_time):
+def load_server_list(journal):
+    api = get_api()
+
+    # Get the server list data (bypassing the cache to get a fresh snapshot)
+    logger.info("[Servers] Loading server list")
+    server_list = api_wrapper(lambda: api.get_server_list(cache_bypass=True))
+
+    # Collect players
+    players = list(set(itertools.chain.from_iterable((server["Users"] for server in server_list))))
+
+    # Collect matches
+    matches = {server["MatchId"]: server for server in server_list if server["MatchId"] is not None}
+
+    if PollFlag.empty_matches not in journal.flags:
+        # Ignore the matches with no players. This means matches will only be considered to exist while there is a
+        # player in it. Considering that servers are subject to kills and restarts when idle, and we are tracking
+        # players and not matches, we can save some time and space ignoring all the empty matches.
+        matches = {match_id: server for match_id, server in matches.items() if len(server["Users"]) > 0}
+
+    return players, matches
+
+
+def update_seen_players(players, journal):
     logger.info("[Players] Updating seen players")
 
     # Collect existing players
@@ -79,7 +103,7 @@ def update_seen_players(players, poll_time):
 
     # Update existing players
     logger.debug("[Players] Updating existing players")
-    Player.query.filter(Player.player_id.in_(existing_players)).update({Player.last_seen: poll_time}, synchronize_session=False)
+    Player.query.filter(Player.player_id.in_(existing_players)).update({Player.last_seen: journal.start}, synchronize_session=False)
 
     # Collect new players
     new_players = list(set(players).difference(existing_players))
@@ -96,65 +120,63 @@ def update_seen_players(players, poll_time):
             for guid in players:
                 player = Player(player_id=guid)
                 player.callsign = callsigns.get(guid, None)
-                player.seen(poll_time)
+                player.seen(journal.start)
                 db.session.add(player)
 
         add_players(new_players, callsigns)
 
-    return len(existing_players), len(new_players)
+    journal.players_updated = len(existing_players)
+    journal.players_added = len(new_players)
 
 
-def update_seen_matches(matches, poll_time):
+def update_seen_matches(matches, journal):
     logger.info("[Matches] Updating seen matches")
 
     # Update existing matches
     logger.debug("[Matches] Updating existing matches")
-    found = []
+    existing_matches = []
     for match in Match.query.filter(Match.match_id.in_(matches.keys())):
-        found.append(match.match_id)
-        match.seen(poll_time)
+        existing_matches.append(match.match_id)
+        match.seen(journal.start)
         match.load_server_info(matches[match.match_id])
         db.session.add(match)
 
+        players = matches[match.match_id]["Users"]
+
         # Update match players
-        update_match_players(match, matches[match.match_id]["Users"], poll_time)
+        if len(players) > 0:
+            # Update existing players
+            existing_players = []
+            for matchplayer in MatchPlayer.query.filter(MatchPlayer.match_id == match.match_id, MatchPlayer.player_id.in_(players)):
+                existing_players.append(matchplayer.player_id)
+                matchplayer.seen(journal.start)
+                db.session.add(matchplayer)
+
+            # Add new players
+            for player in set(players).difference(existing_players):
+                matchplayer = MatchPlayer(match_id=match.match_id, player_id=player)
+                matchplayer.seen(journal.start)
+                db.session.add(matchplayer)
+
+    # Collect new matches
+    new_matches = list(set(matches.keys()).difference(existing_matches))
 
     # Add new matches
     logger.debug("[Matches] Adding new matches")
-    for match_id in (match_id for match_id in matches.keys() if match_id not in found):
+    for match_id in new_matches:
         match = Match(match_id=match_id)
-        match.seen(poll_time)
+        match.seen(journal.start)
         match.load_server_info(matches[match.match_id])
         db.session.add(match)
 
         # Add match players
-        add_match_players(match, matches[match.match_id]["Users"], poll_time)
-
-    return len(found), len(matches) - len(found)
-
-
-def update_match_players(match, players, poll_time):
-    if len(players) > 0:
-        # Update existing players
-        found = []
-        for matchplayer in MatchPlayer.query.filter(MatchPlayer.match_id == match.match_id, MatchPlayer.player_id.in_(players)):
-            found.append(matchplayer.player_id)
-            matchplayer.seen(poll_time)
-            db.session.add(matchplayer)
-
-        # Add new players
-        for player in (player for player in players if player not in found):
+        for player in matches[match.match_id]["Users"]:
             matchplayer = MatchPlayer(match_id=match.match_id, player_id=player)
-            matchplayer.seen(poll_time)
+            matchplayer.seen(journal.start)
             db.session.add(matchplayer)
 
-
-def add_match_players(match, players, poll_time):
-    # Add new players
-    for player in players:
-        matchplayer = MatchPlayer(match_id=match.match_id, player_id=player)
-        matchplayer.seen(poll_time)
-        db.session.add(matchplayer)
+    journal.matches_updated = len(existing_matches)
+    journal.matches_added = len(new_matches)
 
 
 def update_players(last, journal):
@@ -341,61 +363,57 @@ def update_global_rankings(last, journal):
     db.session.commit()
 
 
-def poll_servers():
-    # Setup for the poll
-    players_count = 0
-    matches_count = 0
-    success = True
+def poll_servers(flags):
+    # Prepare journal
     start = datetime.utcnow()
+    journal = PollJournal.last()
+    if journal is not None and journal.status in (PollStatus.in_progress, PollStatus.not_started):
+        logger.error("Previous in-progress poll found! Refusing to start a new poll.")
+        return journal
+    else:
+        journal = PollJournal(start=start, flags=flags, status=PollStatus.not_started, stage=PollStage.not_started)
+
+    journal.status = PollStatus.in_progress
+    db.session.add(journal)
+    db.session.commit()
 
     try:
-        api = get_api()
+        with db.session.no_autoflush:
+            # Load server list
+            journal.stage_next(PollStage.fetch_servers)
+            db.session.commit()
+            players, matches = load_server_list(journal)
 
-        # Get the server list data (bypassing the cache to get a fresh snapshot)
-        logger.info("[Poll] Loading server list")
-        server_list = api_wrapper(lambda: api.get_server_list(cache_bypass=True))
+            # Update players
+            journal.stage_next(PollStage.players)
+            db.session.commit()
+            update_seen_players(players, journal)
 
-        players = set()
-        for server in server_list:
-            for player in server["Users"]:
-                players.add(player)
-        players = list(players)
-        players_count = len(players)
+            # Update matches
+            journal.stage_next(PollStage.matches)
+            db.session.commit()
+            update_seen_matches(matches, journal)
 
-        # Ignore the matches with no players. This means matches will only be considered to exist while there is a
-        # player in it. Considering that servers are subject to kills and restarts when idle, and we are tracking
-        # players and not matches, we can save some time and space ignoring all the empty matches.
-        matches = {server["MatchId"]: server for server in server_list if server["MatchId"] is not None and len(server["Users"]) > 0}
-        matches_count = len(matches)
-
-        if players_count > 0:
-            with db.session.no_autoflush:
-                # Update players
-                update_seen_players(players, start)
-
-        if matches_count > 0:
-            with db.session.no_autoflush:
-                # Update matches
-                update_seen_matches(matches, start)
-
-        # Commit the players and matches
-        logger.debug("[Poll] Committing data")
-        db.session.commit()
+            # Complete
+            journal.stage_next(PollStage.complete)
+            db.session.commit()
     except:
-        logger.error("Exception encountered, rolling back...")
-        success = False
+        logger.error("Exception encountered, rolling back...", exc_info=True)
         try:
             db.session.rollback()
         except:
-            logger.critical("Failed to roll back session!")
-            raise
-        raise
+            logger.critical("Failed to roll back session!", exc_info=True)
+
+        # Record failure
+        journal.fail(start)
+    else:
+        # Record completion
+        journal.complete(start)
     finally:
-        # Record the update session
-        PollLog.record(success, start, datetime.utcnow(), players_count, matches_count)
+        # Commit the journal
         db.session.commit()
 
-    return players_count, matches_count
+    return journal
 
 
 def update_tracker(flags, resume=False):
