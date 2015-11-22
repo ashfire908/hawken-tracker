@@ -6,7 +6,29 @@ from enum import Enum, IntEnum, unique
 from hawkentracker.util import CaseInsensitiveDict
 
 
-# Enums
+# Tracker enums
+@unique
+class PollFlag(Enum):
+    empty_matches = "empty_matches"
+
+
+@unique
+class PollStatus(IntEnum):
+    not_started = 0
+    in_progress = 1
+    failed = 2
+    complete = 3
+
+
+@unique
+class PollStage(IntEnum):
+    not_started = 0
+    complete = 1
+    fetch_servers = 2
+    players = 3
+    matches = 4
+
+
 @unique
 class UpdateFlag(Enum):
     all_players = "players"

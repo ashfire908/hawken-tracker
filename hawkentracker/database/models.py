@@ -8,9 +8,9 @@ from sqlalchemy.dialects import postgres
 
 from hawkentracker.database import db
 from hawkentracker.database.util import NativeIntEnum, NativeStringEnum
-from hawkentracker.mappings import UpdateStatus, UpdateStage, UpdateFlag
+from hawkentracker.mappings import PollFlag, PollStatus, PollStage, UpdateFlag, UpdateStatus, UpdateStage
 
-__all__ = ["Player", "PlayerStats", "Match", "MatchPlayer", "PollLog", "UpdateJournal"]
+__all__ = ["Player", "PlayerStats", "Match", "MatchPlayer", "PollJournal", "UpdateJournal"]
 
 
 class Player(db.Model):
@@ -298,29 +298,48 @@ class MatchPlayer(db.Model):
             self.last_seen = seen_time
 
 
-class PollLog(db.Model):
+class PollJournal(db.Model):
     __tablename__ = "polls"
 
-    time = db.Column(db.DateTime, primary_key=True)
-    success = db.Column(db.Boolean, index=True, nullable=False)
-    time_taken = db.Column(db.Float, nullable=False)
-    players_found = db.Column(db.Integer)
-    matches_found = db.Column(db.Integer)
+    start = db.Column(db.DateTime, primary_key=True)
+    end = db.Column(db.DateTime)
+    time_elapsed = db.Column(db.Float, default=0, nullable=False)
+    status = db.Column(NativeIntEnum(PollStatus), default=PollStatus.not_started, index=True, nullable=False)
+    stage = db.Column(NativeIntEnum(PollStage), default=PollStage.not_started, nullable=False)
+    flags = db.Column(postgres.ARRAY(NativeStringEnum(PollFlag)), default=[], nullable=False)
+    players_updated = db.Column(db.Integer)
+    players_added = db.Column(db.Integer)
+    matches_updated = db.Column(db.Integer)
+    matches_added = db.Column(db.Integer)
+
+    def stage_next(self, next_stage):
+        self.stage = next_stage
+        db.session.add(self)
+
+    def fail(self, poll_start):
+        now = datetime.utcnow()
+        self.time_elapsed += (now - poll_start).total_seconds()
+        self.end = now
+        self.status = PollStatus.failed
+        db.session.add(self)
+
+    def complete(self, poll_start):
+        now = datetime.utcnow()
+        self.time_elapsed += (now - poll_start).total_seconds()
+        self.end = now
+        self.status = PollStatus.complete
+        db.session.add(self)
 
     def __repr__(self):
-        return "<PollLog(time={0}, success={1}, time_taken={2})>".format(self.time, self.success, self.time_taken)
+        return "<PollJournal(start={0}, status={1}, stage={2})>".format(self.start, self.status, self.stage)
 
     @staticmethod
     def last():
-        last = db.session.query(PollLog.time).filter(PollLog.success.is_(True)).order_by(PollLog.time.desc()).first()
-        if last is None:
-            return None
-        return last[0]
+        return db.session.query(PollJournal).order_by(PollJournal.start.desc()).first()
 
     @staticmethod
-    def record(success, start, end, players, matches):
-        poll = PollLog(time=start, success=success, time_taken=(end - start).total_seconds(), players_found=players, matches_found=matches)
-        db.session.add(poll)
+    def last_completed():
+        return db.session.query(PollJournal).filter(PollJournal.status == PollStatus.complete).order_by(PollJournal.start.desc()).first()
 
 
 class UpdateJournal(db.Model):
@@ -383,7 +402,7 @@ class UpdateJournal(db.Model):
         db.session.add(self)
 
     def __repr__(self):
-        return "<UpdateLog(start={0}, status={1}, stage={2})>".format(self.start, self.status, self.stage)
+        return "<UpdateJournal(start={0}, status={1}, stage={2})>".format(self.start, self.status, self.stage)
 
     @staticmethod
     def last():
@@ -391,7 +410,4 @@ class UpdateJournal(db.Model):
 
     @staticmethod
     def last_completed():
-        last = db.session.query(UpdateJournal.start).filter(UpdateJournal.status == UpdateStatus.complete).order_by(UpdateJournal.start.desc()).first()
-        if last is None:
-            return None
-        return last[0]
+        return db.session.query(UpdateJournal).filter(UpdateJournal.status == UpdateStatus.complete).order_by(UpdateJournal.start.desc()).first()
