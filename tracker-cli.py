@@ -14,8 +14,10 @@ def message(msg):
     sys.stdout.flush()
 
 
-def main(task, verbosity, debug, update_flags, poll_flags, resume):
+def main(task, verbosity, debug, flags):
     error = False
+    if flags is None:
+        flags = []
 
     # Import what we need from within the app context
     from hawkentracker.database import db, PollJournal, UpdateJournal
@@ -32,10 +34,11 @@ def main(task, verbosity, debug, update_flags, poll_flags, resume):
 
             if verbosity >= 1:
                 message("Setup complete!")
+
         elif task == "poll":
             if verbosity >= 1:
                 message("Polling servers for players and matches.")
-            journal = poll_servers(poll_flags)
+            journal = poll_servers([flag for flag in flags if isinstance(flag, PollFlag)])
 
             if journal.status == PollStatus.complete:
                 if verbosity >= 1:
@@ -54,7 +57,7 @@ def main(task, verbosity, debug, update_flags, poll_flags, resume):
         elif task == "update":
             if verbosity >= 1:
                 message("Updating rankings and cached player/match data.")
-            journal = update_tracker(update_flags, resume=resume)
+            journal = update_tracker([flag for flag in flags if isinstance(flag, UpdateFlag)])
 
             if journal.status == UpdateStatus.complete:
                 if verbosity >= 1:
@@ -96,7 +99,7 @@ def main(task, verbosity, debug, update_flags, poll_flags, resume):
                         message("Started at: {0} (ran for {1} seconds)".format(update.start, update.time_elapsed))
                     else:
                         message("Update currently in progress!")
-                        message("Started at: {0} ".format(update.start))
+                        message("Started at: {0}".format(update.start))
                     message("Status: {0} Stage: {1} ({2:.2f}% complete)".format(update.status.name, update.stage.name, update.stage_progress))
     finally:
         if debug:
@@ -113,11 +116,11 @@ if __name__ == "__main__":
     parser.add_argument("--verbose", "-v", action="count", default=0, help="increase verbosity and log level")
     parser.add_argument("--debug", action="store_true", default=False, help="enable debug mode (forced to off by default)")
     parser.add_argument("--remote-debug", nargs=2, metavar=('host', 'port'), default=False, help="attach to a remote debugger")
-    parser.add_argument("--all-players", action="store_true", default=False, help="force updating all players")
-    parser.add_argument("--all-matches", action="store_true", default=False, help="force updating all matches")
-    parser.add_argument("--update-callsigns", action="store_true", default=False, help="update callsigns during update")
-    parser.add_argument("--empty-matches", action="store_true", default=False, help="include empty matches in poll data")
-    parser.add_argument("--resume", action="store_true", default=False, help="resumes failed update")
+    parser.add_argument("--empty-matches", dest="flags", action="append_const", const=PollFlag.empty_matches, help="include empty matches in poll data")
+    parser.add_argument("--resume-update", dest="flags", action="append_const", const=UpdateFlag.resume, help="resumes failed update")
+    parser.add_argument("--all-players", dest="flags", action="append_const", const=UpdateFlag.all_players, help="force updating all players")
+    parser.add_argument("--all-matches", dest="flags", action="append_const", const=UpdateFlag.all_matches, help="force updating all matches")
+    parser.add_argument("--update-callsigns", dest="flags", action="append_const", const=UpdateFlag.update_callsigns, help="update callsigns during update")
 
     args = parser.parse_args()
 
@@ -142,19 +145,7 @@ if __name__ == "__main__":
 
     parameters["DEBUG"] = args.debug
 
-    update_flags = []
-    if args.all_players:
-        update_flags.append(UpdateFlag.all_players)
-    if args.all_matches:
-        update_flags.append(UpdateFlag.all_matches)
-    if args.update_callsigns:
-        update_flags.append(UpdateFlag.update_callsigns)
-
-    poll_flags = []
-    if args.empty_matches:
-        poll_flags.append(PollFlag.empty_matches)
-
     # Create app and enter context
     app = create_app(config_parameters=parameters)
     with app.app_context():
-        main(args.task, verbosity=args.verbose, debug=args.debug, update_flags=update_flags, poll_flags=poll_flags, resume=args.resume)
+        main(args.task, verbosity=args.verbose, debug=args.debug, flags=args.flags)

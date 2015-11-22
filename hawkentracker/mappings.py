@@ -34,6 +34,7 @@ class UpdateFlag(Enum):
     all_players = "players"
     all_matches = "matches"
     update_callsigns = "callsigns"
+    resume = "resume"
 
 
 @unique
