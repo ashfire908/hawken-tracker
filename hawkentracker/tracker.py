@@ -416,7 +416,12 @@ def poll_servers(flags):
     return journal
 
 
-def update_tracker(flags, resume=False):
+def update_tracker(flags):
+    # Check for resume flag
+    resume = UpdateFlag.resume in flags
+    if resume:
+        flags.remove(UpdateFlag.resume)
+
     # Prepare journal
     start = datetime.utcnow()
     journal = UpdateJournal.last()
