@@ -27,10 +27,24 @@ class Player(db.Model):
     opt_out = db.Column(db.Boolean)
     blacklisted = db.Column(db.Boolean, default=False, nullable=False)
     blacklist_reason = db.Column(db.String)
+    latest_snapshot = db.Column(db.DateTime)
 
-    matches = db.relationship("MatchPlayer", order_by="MatchPlayer.last_seen", backref=db.backref("player", uselist=False))
-    stats = db.relationship("PlayerStats", uselist=False, order_by="PlayerStats.snapshot_taken")
-    stats_history = db.relationship("PlayerStats", order_by="PlayerStats.snapshot_taken", backref=db.backref("player", uselist=False))
+    matches = db.relationship(
+        "MatchPlayer",
+        order_by="MatchPlayer.last_seen",
+        backref=db.backref("player", uselist=False)
+    )
+    stats = db.relationship(
+        "PlayerStats",
+        primaryjoin="and_(Player.player_id==PlayerStats.player_id, "
+                    "Player.latest_snapshot==PlayerStats.snapshot_taken)",
+        uselist=False
+    )
+    stats_history = db.relationship(
+        "PlayerStats",
+        order_by="PlayerStats.snapshot_taken",
+        backref=db.backref("player", uselist=False)
+    )
 
     def seen(self, seen_time):
         if self.first_seen is None or self.first_seen > seen_time:

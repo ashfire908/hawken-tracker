@@ -222,6 +222,9 @@ def update_player_stats(players, update_time):
             player_stats.load_stats(stats[player.player_id])
             db.session.add(player_stats)
 
+            player.latest_snapshot = player_stats.snapshot_taken
+            db.session.add(player)
+
 
 def update_player_regions(players):
     # Iterate through the players
