@@ -2,31 +2,6 @@
 # Hawken Tracker - Utilities
 
 import collections
-import re
-import random
-
-from passlib.context import CryptContext
-
-password_context = CryptContext(schemes=["sha256_crypt"])
-email_re = re.compile(r"^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$", re.I)
-
-
-def random_hex(length):
-    return ("%0" + str(length) + "x") % random.randrange(16 ** length)
-
-
-def chunks(data, size):
-    chunk = []
-    i = 0
-    for item in data:
-        chunk.append(item)
-        i += 1
-        if i % size == 0:
-            yield chunk
-            chunk = []
-
-    if i % size != 0:
-        yield chunk
 
 
 class CaseInsensitiveDict(collections.MutableMapping):
