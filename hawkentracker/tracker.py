@@ -14,6 +14,7 @@ from hawkentracker.database import db, Player, PlayerStats, Match, MatchPlayer, 
 from hawkentracker.database.util import HandleUniqueViolation, windowed_query
 from hawkentracker.mappings import PollFlag, PollStatus, PollStage, UpdateFlag, UpdateStatus, UpdateStage,\
     ranking_fields, region_groupings
+from hawkentracker.util import remove_nulls
 
 logger = logging.getLogger(__name__)
 
@@ -294,7 +295,7 @@ def update_match_stats(match, update_time):
     if len(stats) > 0:
         # Unpack and update match stats
         mmrs, levels = zip(*stats)
-        match.calculate_stats([mmr for mmr in mmrs if mmr is not None], levels, update_time)
+        match.calculate_stats(remove_nulls(mmrs), remove_nulls(levels), update_time)
         db.session.add(match)
 
 
@@ -319,17 +320,13 @@ def update_global_rankings(last, journal):
         # Delete old rankings
         redis.delete(key)
 
-        # Get the target field and it's default
+        # Get the target field
         target = getattr(PlayerStats, field)
-        if target.default is None:
-            default = target.default
-        else:
-            default = target.default.arg
 
         # Iterate over the players, building the current field's rankings
         query = db.session.query(PlayerStats.player_id, target).\
                            join(Player).\
-                           filter(target != default).\
+                           filter(target.isnot(None)).\
                            filter(Player.blacklisted.is_(False)).\
                            filter(PlayerStats.snapshot_taken == latest_snapshot).\
                            order_by(target.desc())

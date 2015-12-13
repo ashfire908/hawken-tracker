@@ -66,173 +66,214 @@ class PlayerStats(db.Model):
     player_id = db.Column(db.String(36), db.ForeignKey("players.player_id"), primary_key=True, index=True)
     snapshot_taken = db.Column(db.DateTime, primary_key=True, index=True)
     mmr = db.Column(db.Float, index=True)
-    pilot_level = db.Column(db.Integer, default=1, nullable=False, index=True)
-    time_played = db.Column(db.Integer, default=0, nullable=False, index=True)
+    pilot_level = db.Column(db.Integer)
+    time_played = db.Column(db.Integer, index=True)
     xp = db.Column(db.Integer, index=True)
     xp_per_min = db.Column(db.Float, index=True)
     hc = db.Column(db.Integer, index=True)
     hc_per_min = db.Column(db.Float, index=True)
-    kills = db.Column(db.Integer, default=0, nullable=False)
-    deaths = db.Column(db.Integer, default=0, nullable=False)
-    assists = db.Column(db.Integer, default=0, nullable=False)
+    kills = db.Column(db.Integer)
+    deaths = db.Column(db.Integer)
+    assists = db.Column(db.Integer)
     kda = db.Column(db.Float, index=True)
-    kill_steals = db.Column(db.Integer, default=0, nullable=False)
+    kill_steals = db.Column(db.Integer)
     kill_steal_ratio = db.Column(db.Float, index=True)
-    critical_assists = db.Column(db.Integer, default=0, nullable=False)
+    critical_assists = db.Column(db.Integer)
     critical_assist_ratio = db.Column(db.Float, index=True)
-    damage_in = db.Column(db.Float, default=0, nullable=False)
-    damage_out = db.Column(db.Float, default=0, nullable=False)
+    damage_in = db.Column(db.Float)
+    damage_out = db.Column(db.Float)
     damage_ratio = db.Column(db.Float, index=True)
-    matches = db.Column(db.Integer, default=0, nullable=False)
-    wins = db.Column(db.Integer, default=0, nullable=False)
-    losses = db.Column(db.Integer, default=0, nullable=False)
-    abandons = db.Column(db.Integer, default=0, nullable=False)
+    matches = db.Column(db.Integer)
+    wins = db.Column(db.Integer)
+    losses = db.Column(db.Integer)
+    abandons = db.Column(db.Integer)
     win_loss = db.Column(db.Float, index=True)
-    dm_total = db.Column(db.Integer, default=0, nullable=False)
-    dm_win = db.Column(db.Integer, default=0, nullable=False)
-    dm_mvp = db.Column(db.Integer, default=0, nullable=False)
-    dm_loss = db.Column(db.Integer, default=0, nullable=False)
-    dm_abandon = db.Column(db.Integer, default=0, nullable=False)
+    dm_total = db.Column(db.Integer)
+    dm_win = db.Column(db.Integer)
+    dm_mvp = db.Column(db.Integer)
+    dm_loss = db.Column(db.Integer)
+    dm_abandon = db.Column(db.Integer)
     dm_win_loss = db.Column(db.Float, index=True)
-    tdm_total = db.Column(db.Integer, default=0, nullable=False)
-    tdm_win = db.Column(db.Integer, default=0, nullable=False)
-    tdm_loss = db.Column(db.Integer, default=0, nullable=False)
-    tdm_abandon = db.Column(db.Integer, default=0, nullable=False)
+    tdm_total = db.Column(db.Integer)
+    tdm_win = db.Column(db.Integer)
+    tdm_loss = db.Column(db.Integer)
+    tdm_abandon = db.Column(db.Integer)
     tdm_win_loss = db.Column(db.Float, index=True)
-    ma_total = db.Column(db.Integer, default=0, nullable=False)
-    ma_win = db.Column(db.Integer, default=0, nullable=False)
-    ma_loss = db.Column(db.Integer, default=0, nullable=False)
-    ma_abandon = db.Column(db.Integer, default=0, nullable=False)
+    ma_total = db.Column(db.Integer)
+    ma_win = db.Column(db.Integer)
+    ma_loss = db.Column(db.Integer)
+    ma_abandon = db.Column(db.Integer)
     ma_win_loss = db.Column(db.Float, index=True)
-    sg_total = db.Column(db.Integer, default=0, nullable=False)
-    sg_win = db.Column(db.Integer, default=0, nullable=False)
-    sg_loss = db.Column(db.Integer, default=0, nullable=False)
-    sg_abandon = db.Column(db.Integer, default=0, nullable=False)
+    sg_total = db.Column(db.Integer)
+    sg_win = db.Column(db.Integer)
+    sg_loss = db.Column(db.Integer)
+    sg_abandon = db.Column(db.Integer)
     sg_win_loss = db.Column(db.Float, index=True)
-    coop_total = db.Column(db.Integer, default=0, nullable=False)
-    coop_win = db.Column(db.Integer, default=0, nullable=False)
-    coop_loss = db.Column(db.Integer, default=0, nullable=False)
-    coop_abandon = db.Column(db.Integer, default=0, nullable=False)
+    coop_total = db.Column(db.Integer)
+    coop_win = db.Column(db.Integer)
+    coop_loss = db.Column(db.Integer)
+    coop_abandon = db.Column(db.Integer)
     coop_win_loss = db.Column(db.Float, index=True)
-    cooptdm_total = db.Column(db.Integer, default=0, nullable=False)
-    cooptdm_win = db.Column(db.Integer, default=0, nullable=False)
-    cooptdm_loss = db.Column(db.Integer, default=0, nullable=False)
-    cooptdm_abandon = db.Column(db.Integer, default=0, nullable=False)
+    cooptdm_total = db.Column(db.Integer)
+    cooptdm_win = db.Column(db.Integer)
+    cooptdm_loss = db.Column(db.Integer)
+    cooptdm_abandon = db.Column(db.Integer)
     cooptdm_win_loss = db.Column(db.Float, index=True)
 
     def __repr__(self):
         return "<PlayerStats(player_id='{0}', snapshot_taken={1})>".format(self.player_id, self.snapshot_taken)
 
     def load_stats(self, stats):
+        def naz(value):
+            """None as zero helper"""
+            if value is None:
+                return 0
+            return value
+
         # Filters
-        default_mmr = (0.0, 1250.0, 1500.0)
+        default_mmr = (0.0, 1250.0, 1500.0, None)
         min_time = 36000  # 1 hour
         min_matches = 50
         min_kills = 100
         min_assists = 100
 
         # Unranked stats
-        self.kills = stats.get("Kills.Total", 0)
-        self.deaths = stats.get("Death.Total", 0)
-        self.assists = stats.get("Assist.Total", 0)
-        self.kill_steals = stats.get("Kills.Steal", 0)
-        self.critical_assists = stats.get("Assist.CriticalDamage", 0)
-        self.damage_in = stats.get("Damage.Sustained.Total", 0.0)
-        self.damage_out = stats.get("Damage.Dealt.Total", 0.0)
-        self.dm_total = stats.get("GameMode.DM.TotalMatches", 0)
-        self.dm_win = stats.get("GameMode.DM.Wins", 0)
-        self.dm_mvp = stats.get("GameMode.DM.MVP", 0)
-        self.dm_loss = stats.get("GameMode.DM.Losses", 0)
-        self.dm_abandon = stats.get("GameMode.DM.Abandonded", 0)
-        self.tdm_total = stats.get("GameMode.TDM.TotalMatches", 0)
-        self.tdm_win = stats.get("GameMode.TDM.Wins", 0)
-        self.tdm_loss = stats.get("GameMode.TDM.Losses", 0)
-        self.tdm_abandon = stats.get("GameMode.TDM.Abandonded", 0)
-        self.ma_total = stats.get("GameMode.MA.TotalMatches", 0)
-        self.ma_win = stats.get("GameMode.MA.Wins", 0)
-        self.ma_loss = stats.get("GameMode.MA.Losses", 0)
-        self.ma_abandon = stats.get("GameMode.MA.Abandonded", 0)
-        self.sg_total = stats.get("GameMode.SG.TotalMatches", 0)
-        self.sg_win = stats.get("GameMode.SG.Wins", 0)
-        self.sg_loss = stats.get("GameMode.SG.Losses", 0)
-        self.sg_abandon = stats.get("GameMode.SG.Abandonded", 0)
-        self.coop_total = stats.get("GameMode.CoOp.TotalMatches", 0)
-        self.coop_win = stats.get("GameMode.CoOp.Wins", 0)
-        self.coop_loss = stats.get("GameMode.CoOp.Losses", 0)
-        self.coop_abandon = stats.get("GameMode.CoOp.Abandonded", 0)
-        self.cooptdm_total = stats.get("GameMode.CoOpTDM.TotalMatches", 0)
-        self.cooptdm_win = stats.get("GameMode.CoOpTDM.Wins", 0)
-        self.cooptdm_loss = stats.get("GameMode.CoOpTDM.Losses", 0)
-        self.cooptdm_abandon = stats.get("GameMode.CoOpTDM.Abandonded", 0)
-        self.matches = min(stats.get("GameMode.All.TotalMatches", 0) - self.cooptdm_total, 0)
-        self.wins = min(stats.get("GameMode.All.Wins", 0) - self.cooptdm_win, 0)
-        self.losses = min(stats.get("GameMode.All.Losses", 0) - self.cooptdm_loss, 0)
-        self.abandons = min(stats.get("GameMode.All.Abandonded", 0) - self.cooptdm_abandon, 0)
+        self.kills = stats.get("Kills.Total")
+        self.deaths = stats.get("Death.Total")
+        self.assists = stats.get("Assist.Total")
+        self.kill_steals = stats.get("Kills.Steal")
+        self.critical_assists = stats.get("Assist.CriticalDamage")
+        self.damage_in = stats.get("Damage.Sustained.Total")
+        self.damage_out = stats.get("Damage.Dealt.Total")
+        self.dm_total = stats.get("GameMode.DM.TotalMatches")
+        self.dm_win = stats.get("GameMode.DM.Wins")
+        self.dm_mvp = stats.get("GameMode.DM.MVP")
+        self.dm_loss = stats.get("GameMode.DM.Losses")
+        self.dm_abandon = stats.get("GameMode.DM.Abandonded")
+        self.tdm_total = stats.get("GameMode.TDM.TotalMatches")
+        self.tdm_win = stats.get("GameMode.TDM.Wins")
+        self.tdm_loss = stats.get("GameMode.TDM.Losses")
+        self.tdm_abandon = stats.get("GameMode.TDM.Abandonded")
+        self.ma_total = stats.get("GameMode.MA.TotalMatches")
+        self.ma_win = stats.get("GameMode.MA.Wins")
+        self.ma_loss = stats.get("GameMode.MA.Losses")
+        self.ma_abandon = stats.get("GameMode.MA.Abandonded")
+        self.sg_total = stats.get("GameMode.SG.TotalMatches")
+        self.sg_win = stats.get("GameMode.SG.Wins")
+        self.sg_loss = stats.get("GameMode.SG.Losses")
+        self.sg_abandon = stats.get("GameMode.SG.Abandonded")
+        self.coop_total = stats.get("GameMode.CoOp.TotalMatches")
+        self.coop_win = stats.get("GameMode.CoOp.Wins")
+        self.coop_loss = stats.get("GameMode.CoOp.Losses")
+        self.coop_abandon = stats.get("GameMode.CoOp.Abandonded")
+        self.cooptdm_total = stats.get("GameMode.CoOpTDM.TotalMatches")
+        self.cooptdm_win = stats.get("GameMode.CoOpTDM.Wins")
+        self.cooptdm_loss = stats.get("GameMode.CoOpTDM.Losses")
+        self.cooptdm_abandon = stats.get("GameMode.CoOpTDM.Abandonded")
+        self.matches = stats.get("GameMode.All.TotalMatches")
+        self.wins = stats.get("GameMode.All.Wins")
+        self.losses = stats.get("GameMode.All.Losses")
+        self.abandons = stats.get("GameMode.All.Abandonded")
+
+        # Remove coop tdm from global counts
+        if self.matches is not None and self.cooptdm_total is not None:
+            self.matches -= self.cooptdm_total
+        if self.wins is not None and self.cooptdm_win is not None:
+            self.wins -= self.cooptdm_win
+        if self.losses is not None and self.cooptdm_loss is not None:
+            self.losses -= self.cooptdm_loss
+        if self.abandons is not None and self.cooptdm_abandon is not None:
+            self.abandons -= self.cooptdm_abandon
 
         # Ranked stats
-        mmr = stats.get("MatchMaking.Rating", 0.0)
+        mmr = stats.get("MatchMaking.Rating")
         if mmr not in default_mmr:
             self.mmr = mmr
 
-        self.pilot_level = stats.get("Progress.Pilot.Level", 1)
-        self.time_played = stats.get("TimePlayed", 0)
+        self.pilot_level = stats.get("Progress.Pilot.Level")
+        self.time_played = stats.get("TimePlayed")
 
-        if self.time_played >= min_time:
+        if self.time_played is not None and self.time_played >= min_time:
             # XP
-            xp = stats.get("ExpPoints", 0)
-            if xp > 0:
+            xp = stats.get("ExpPoints")
+            if xp is not None and xp > 0:
                 self.xp = xp
                 self.xp_per_min = (self.xp / self.time_played) * 60
 
             # HC
-            hc = stats.get("HawkenPoints", 0)
-            if hc > 0:
+            hc = stats.get("HawkenPoints")
+            if hc is not None and hc > 0:
                 self.hc = hc
                 self.hc_per_min = (self.hc / self.time_played) * 60
 
             # KDA
-            if self.kills >= min_kills and self.deaths > 0 and self.assists >= min_assists:
+            if None not in (self.kills, self.deaths, self.assists) and \
+               self.kills >= min_kills and self.deaths > 0 and self.assists >= min_assists:
                 self.kda = (self.kills + self.assists) / self.deaths
 
             # Kill steals
-            if self.kill_steals > 0 and self.kills >= min_kills:
+            if None not in (self.kill_steals, self.kills) and \
+               self.kill_steals > 0 and self.kills >= min_kills:
                 self.kill_steal_ratio = self.kill_steals / self.kills
 
             # Critical assists
-            if self.critical_assists > 0 and self.assists >= min_assists:
+            if None not in (self.critical_assists, self.assists) and \
+               self.critical_assists > 0 and self.assists >= min_assists:
                 self.critical_assist_ratio = self.critical_assists / self.assists
 
             # Damage
-            if self.damage_in > 0 and self.damage_out > 0:
+            if None not in (self.damage_in, self.damage_out) and \
+               self.damage_in > 0 and self.damage_out > 0:
                 self.damage_ratio = self.damage_out / self.damage_in
 
             # Deathmatch
-            if self.dm_total >= min_matches and self.dm_mvp > 0 and self.dm_loss + self.dm_abandon + (self.dm_win - self.dm_mvp) > 0:
-                self.dm_win_loss = self.dm_mvp / (self.dm_loss + self.dm_abandon + (self.dm_win - self.dm_mvp))
+            if None not in (self.dm_total, self.dm_mvp) and \
+               self.dm_total >= min_matches and self.dm_mvp > 0:
+                losses = naz(self.dm_loss) + naz(self.dm_abandon) + (naz(self.dm_win) - naz(self.dm_mvp))
+                if losses > 0:
+                    self.dm_win_loss = naz(self.dm_mvp) / losses
 
             # Team Deathmatch
-            if self.tdm_total >= min_matches and self.tdm_win > 0 and self.tdm_loss + self.tdm_abandon > 0:
-                self.tdm_win_loss = self.tdm_win / (self.tdm_loss + self.tdm_abandon)
+            if None not in (self.tdm_total, self.tdm_win) and \
+               self.tdm_total >= min_matches and self.tdm_win > 0:
+                losses = naz(self.tdm_loss) + naz(self.tdm_abandon)
+                if losses > 0:
+                    self.tdm_win_loss = self.tdm_win / losses
 
             # Missile Assault
-            if self.ma_total >= min_matches and self.ma_win > 0 and self.ma_loss + self.ma_abandon > 0:
-                self.ma_win_loss = self.ma_win / (self.ma_loss + self.ma_abandon)
+            if None not in (self.ma_total, self.ma_win) and \
+               self.ma_total >= min_matches and self.ma_win > 0:
+                losses = naz(self.ma_loss) + naz(self.ma_abandon)
+                if losses > 0:
+                    self.ma_win_loss = self.ma_win / losses
 
             # Siege
-            if self.sg_total >= min_matches and self.sg_win > 0 and (self.sg_loss + self.sg_abandon) > 0:
-                self.sg_win_loss = self.sg_win / (self.sg_loss + self.sg_abandon)
+            if None not in (self.sg_total, self.sg_win) and \
+               self.sg_total >= min_matches and self.sg_win > 0:
+                losses = naz(self.sg_loss) + naz(self.sg_abandon)
+                if losses > 0:
+                    self.sg_win_loss = self.sg_win / losses
 
-            # COBD
-            if self.coop_total >= min_matches and self.coop_win > 0 and self.coop_loss + self.coop_abandon > 0:
-                self.coop_win_loss = self.coop_win / (self.coop_loss + self.coop_abandon)
+            # Coop Bot Destruction
+            if None not in (self.coop_total, self.coop_win) and \
+               self.coop_total >= min_matches and self.coop_win > 0:
+                losses = naz(self.coop_loss) + naz(self.coop_abandon)
+                if losses > 0:
+                    self.coop_win_loss = self.coop_win / losses
 
             # Coop TDM
-            if self.cooptdm_total >= min_matches and self.cooptdm_win > 0 and self.cooptdm_loss + self.cooptdm_abandon > 0:
-                self.cooptdm_win_loss = self.cooptdm_win / (self.cooptdm_loss + self.cooptdm_abandon)
+            if None not in (self.cooptdm_total, self.cooptdm_win) and \
+               self.cooptdm_total >= min_matches and self.cooptdm_win > 0:
+                losses = naz(self.cooptdm_loss) + naz(self.cooptdm_abandon)
+                if losses > 0:
+                    self.cooptdm_win_loss = self.cooptdm_win / losses
 
             # All
-            if self.matches >= min_matches and self.wins > 0 and self.losses + self.abandons > 0:
-                self.win_loss = self.wins / (self.losses + self.abandons)
+            if None not in (self.matches, self.wins) and \
+               self.matches >= min_matches and self.wins > 0:
+                losses = naz(self.losses) + naz(self.abandons)
+                if losses > 0:
+                    self.win_loss = self.wins / losses
 
 
 class Match(db.Model):

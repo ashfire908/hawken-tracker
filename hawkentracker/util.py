@@ -81,3 +81,7 @@ def value_or_default(value, default):
     if value is None:
         return default
     return value
+
+
+def remove_nulls(lst):
+    return [x for x in lst if x is not None]
