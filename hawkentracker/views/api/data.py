@@ -6,7 +6,7 @@ from requests import codes as status_codes
 from sqlalchemy.orm import contains_eager
 
 from hawkentracker.interface import get_api, get_player_id
-from hawkentracker.tracker import get_ranked_players, get_global_rank
+from hawkentracker.tracker import get_ranked_players
 from hawkentracker.mappings import ranking_fields, region_names, gametype_names, map_names
 from hawkentracker.helpers import parse_serverside
 from hawkentracker.database import Player, Match, MatchPlayer
@@ -25,8 +25,7 @@ def global_leaderboard():
     additional = [extra for extra in request.args.get("extra", "").split(",") if extra in ranking_fields and extra != sort]
 
     # Load the data
-    players = get_ranked_players(sort, 100, preload=additional)
-    rankings = get_global_rank([player.player_id for player in players], sort)[0]
+    players = get_ranked_players(sort, 100, preload=len(additional) > 0)
 
     # Format it for return
     items = []
@@ -34,7 +33,7 @@ def global_leaderboard():
         item = {}
 
         # Add rank
-        item["rank"] = rankings[player.player_id]
+        item["rank"] = getattr(player.rankings, sort)
 
         # Add player info
         item["player"] = player.callsign or player.player_id

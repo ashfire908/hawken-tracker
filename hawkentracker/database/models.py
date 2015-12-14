@@ -10,7 +10,8 @@ from hawkentracker.database import db
 from hawkentracker.database.util import NativeIntEnum, NativeStringEnum
 from hawkentracker.mappings import PollFlag, PollStatus, PollStage, UpdateFlag, UpdateStatus, UpdateStage
 
-__all__ = ["Player", "PlayerStats", "Match", "MatchPlayer", "PollJournal", "UpdateJournal"]
+__all__ = ["Player", "PlayerStats", "PlayerRanking", "PlayerRankingSnapshot", "Match", "MatchPlayer", "PollJournal",
+           "UpdateJournal"]
 
 
 class Player(db.Model):
@@ -43,6 +44,16 @@ class Player(db.Model):
     stats_history = db.relationship(
         "PlayerStats",
         order_by="PlayerStats.snapshot_taken",
+        backref=db.backref("player", uselist=False)
+    )
+    # FIXME: MISSING CODE TO REDUCE THIS TO ONLY ONE RESULT
+    rankings = db.relationship(
+        "PlayerRanking",
+        uselist=False
+    )
+    rankings_history = db.relationship(
+        "PlayerRanking",
+        order_by="PlayerRanking.snapshot_taken",
         backref=db.backref("player", uselist=False)
     )
 
@@ -274,6 +285,61 @@ class PlayerStats(db.Model):
                 losses = naz(self.losses) + naz(self.abandons)
                 if losses > 0:
                     self.win_loss = self.wins / losses
+
+
+class PlayerRanking(db.Model):
+    __tablename__ = "player_rankings"
+
+    player_id = db.Column(db.String(36), db.ForeignKey("players.player_id"), primary_key=True, index=True)
+    snapshot_taken = db.Column(db.DateTime, db.ForeignKey("player_ranking_snapshots.snapshot_taken"), primary_key=True, index=True)
+    mmr = db.Column(db.Integer, index=True)
+    time_played = db.Column(db.Integer, index=True)
+    xp = db.Column(db.Integer, index=True)
+    xp_per_min = db.Column(db.Integer, index=True)
+    hc = db.Column(db.Integer, index=True)
+    hc_per_min = db.Column(db.Integer, index=True)
+    kda = db.Column(db.Integer, index=True)
+    kill_steal_ratio = db.Column(db.Integer, index=True)
+    critical_assist_ratio = db.Column(db.Integer, index=True)
+    damage_ratio = db.Column(db.Integer, index=True)
+    win_loss = db.Column(db.Integer, index=True)
+    dm_win_loss = db.Column(db.Integer, index=True)
+    tdm_win_loss = db.Column(db.Integer, index=True)
+    ma_win_loss = db.Column(db.Integer, index=True)
+    sg_win_loss = db.Column(db.Integer, index=True)
+    coop_win_loss = db.Column(db.Integer, index=True)
+    cooptdm_win_loss = db.Column(db.Integer, index=True)
+
+    snapshot = db.relationship("PlayerRankingSnapshot", uselist=False)
+
+    def __repr__(self):
+        return "<PlayerRanking(player_id='{0}', snapshot_taken={1})>".format(self.player_id, self.snapshot_taken)
+
+
+class PlayerRankingSnapshot(db.Model):
+    __tablename__ = "player_ranking_snapshots"
+
+    snapshot_taken = db.Column(db.DateTime, primary_key=True)
+    mmr = db.Column(db.Integer)
+    time_played = db.Column(db.Integer)
+    xp = db.Column(db.Integer)
+    xp_per_min = db.Column(db.Integer)
+    hc = db.Column(db.Integer)
+    hc_per_min = db.Column(db.Integer)
+    kda = db.Column(db.Integer)
+    kill_steal_ratio = db.Column(db.Integer)
+    critical_assist_ratio = db.Column(db.Integer)
+    damage_ratio = db.Column(db.Integer)
+    win_loss = db.Column(db.Integer)
+    dm_win_loss = db.Column(db.Integer)
+    tdm_win_loss = db.Column(db.Integer)
+    ma_win_loss = db.Column(db.Integer)
+    sg_win_loss = db.Column(db.Integer)
+    coop_win_loss = db.Column(db.Integer)
+    cooptdm_win_loss = db.Column(db.Integer)
+
+    def __repr__(self):
+        return "<PlayerRankingSnapshot(snapshot_taken={0})>".format(self.snapshot_taken)
 
 
 class Match(db.Model):

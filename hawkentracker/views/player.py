@@ -10,7 +10,6 @@ from hawkentracker.interface import get_api, get_player_id
 from hawkentracker.mappings import ranking_fields, ranking_names_full
 from hawkentracker.helpers import to_last, format_stat
 from hawkentracker.database import Player
-from hawkentracker.tracker import get_global_rank
 
 player = Blueprint("player", __name__, url_prefix="/player")
 
@@ -71,7 +70,8 @@ def view(target):
             stat = getattr(player.stats, field, None)
             if stat is None:
                 continue
-            rank, total = get_global_rank(player.player_id, field)
+            rank = getattr(player.rankings, field)
+            total = getattr(player.rankings.snapshot, field)
             if rank is None:
                 context["ranking"][ranking_names_full[field]] = (format_stat(stat, field), "Unranked")
             else:

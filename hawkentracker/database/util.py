@@ -32,7 +32,7 @@ def dump_queries(name):
                     out.write("Param: {0}\n".format(item))
 
 
-def column_windows(session, column, windowsize, begin=None, end=None):
+def column_windows(session, column, windowsize, begin, end, filters):
     """Return a series of WHERE clauses against
     a given column that break it into windows.
 
@@ -56,6 +56,8 @@ def column_windows(session, column, windowsize, begin=None, end=None):
         q = q.filter(column >= begin)
     if end is not None:
         q = q.filter(column < end)
+    for window_filter in filters:
+        q = q.filter(window_filter)
 
     # Get intervals
     intervals = [interval for interval, in q]
@@ -85,8 +87,12 @@ def column_windows(session, column, windowsize, begin=None, end=None):
     return windows
 
 
-def windowed_query(q, column, windowsize, begin=None, end=None, streaming=False, chunk_commit=True, journal=None, logger=None, logger_prefix=None):
+def windowed_query(q, column, windowsize, begin=None, end=None, window_filters=None, query_filters=None, streaming=False, chunk_commit=True, journal=None, logger=None, logger_prefix=None):
     """"Break a Query into windows on a given column."""
+    if window_filters is None:
+        window_filters = []
+    if query_filters is None:
+        query_filters = []
 
     def format_log(msg):
         if logger_prefix is not None:
@@ -96,7 +102,7 @@ def windowed_query(q, column, windowsize, begin=None, end=None, streaming=False,
     if logger is not None:
         logger.debug(format_log("Generating windows..."))
 
-    windows = column_windows(q.session, column, windowsize, begin=begin, end=end)
+    windows = column_windows(q.session, column, windowsize, begin, end, window_filters)
     total_windows = len(windows)
 
     if total_windows == 0:
@@ -112,11 +118,18 @@ def windowed_query(q, column, windowsize, begin=None, end=None, streaming=False,
         q.session.commit()
 
     for whereclause in windows[i:]:
+        query = q.filter(whereclause)
+
+        for query_filter in query_filters:
+            query = query.filter(query_filter)
+
+        query = query.order_by(column)
+
         if streaming:
-            for row in q.filter(whereclause).order_by(column):
+            for row in query:
                 yield i, row
         else:
-            yield i, q.filter(whereclause).order_by(column).all()
+            yield i, query.all()
 
         # Update now so checkpoint will resume correctly, and logging chunk name starts at 1
         i += 1

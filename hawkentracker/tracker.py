@@ -9,8 +9,9 @@ from functools import wraps
 from sqlalchemy.orm import contains_eager
 from flask import current_app
 
-from hawkentracker.interface import get_api, api_wrapper, get_redis, format_redis_key
-from hawkentracker.database import db, Player, PlayerStats, Match, MatchPlayer, PollJournal, UpdateJournal
+from hawkentracker.interface import get_api, api_wrapper
+from hawkentracker.database import db, Player, PlayerStats, PlayerRanking, PlayerRankingSnapshot, Match, MatchPlayer,\
+    PollJournal, UpdateJournal
 from hawkentracker.database.util import HandleUniqueViolation, windowed_query
 from hawkentracker.mappings import PollFlag, PollStatus, PollStage, UpdateFlag, UpdateStatus, UpdateStage,\
     ranking_fields, region_groupings
@@ -301,7 +302,12 @@ def update_match_stats(match, update_time):
 
 def update_global_rankings(last, journal):
     logger.info("[Rankings] Updating global rankings")
-    redis = get_redis()
+
+    # Get snapshot object
+    snapshot = PlayerRankingSnapshot.query.get(journal.start)
+    if snapshot is None:
+        snapshot = PlayerRankingSnapshot(snapshot_taken=journal.start)
+        db.session.add(snapshot)
 
     # Prep journal
     i = journal.stage_start(len(ranking_fields))
@@ -309,48 +315,58 @@ def update_global_rankings(last, journal):
 
     # Iterate over the rankings
     for field in ranking_fields[i:]:
-        key = format_redis_key("rank", field)
-
         logger.debug("[Rankings] Updating global rankings for %s", field)
 
-        # Delete old rankings
-        redis.delete(key)
-
         # Get the target field
-        target = getattr(PlayerStats, field)
+        target = getattr(PlayerStats, field).desc()
 
         # Iterate over the players, building the current field's rankings
         query = db.session.query(PlayerStats.player_id, target).\
                            join(Player).\
-                           filter(target.isnot(None)).\
-                           filter(Player.blacklisted.is_(False)).\
-                           filter(PlayerStats.snapshot_taken == Player.latest_snapshot).\
-                           order_by(target.desc())
+                           filter(PlayerStats.snapshot_taken == Player.latest_snapshot)
+
+        window_filters = [target.isnot(None)]
+        query_filters = [Player.blacklisted.is_(False)]
 
         # Setup for the loop
         index = 0
         position = 0
         last = False
-        batch = {}
-        for player, score in query.yield_per(current_app.config["TRACKER_BATCH_SIZE"]):
-            # Update the index and position
-            index += 1
-            if last != score:
-                position = index
-            last = score
+        for _, chunk in windowed_query(query, target, current_app.config["TRACKER_BATCH_SIZE"],
+                                       window_filters=window_filters,
+                                       query_filters=query_filters,
+                                       logger=logger,
+                                       logger_prefix="[Rankings]"):
+            # Gather rankings
+            rankings_query = PlayerRanking.query.\
+                filter(PlayerRanking.player_id.in_([player for player, _ in chunk])).\
+                filter(PlayerRanking.snapshot_taken == journal.start).\
+                all()
+            rankings = {ranking.player_id: ranking for ranking in rankings_query}
 
-            # Set player's position
-            batch[player] = position
+            # Iterate scores
+            for player, score in chunk:
+                # Update the index and position
+                index += 1
+                if last != score:
+                    position = index
+                last = score
 
-            if index % current_app.config["TRACKER_BATCH_SIZE"] == 0:
-                # Save the chunk of players
-                redis.hmset(key, batch)
-                batch = {}
+                # Get player ranking
+                if player in rankings:
+                    ranking = rankings[player]
+                else:
+                    ranking = PlayerRanking(player_id=player, snapshot_taken=journal.start)
+
+                # Set player's position
+                setattr(ranking, field, position)
+                db.session.add(ranking)
 
         # Set the total number of ranked players
-        batch["total"] = index
-        redis.hmset(key, batch)
+        setattr(snapshot, field, index)
+        db.session.add(snapshot)
 
+        # Checkpoint
         i += 1
         journal.stage_checkpoint(i)
         db.session.commit()
@@ -495,50 +511,20 @@ def update_tracker(flags):
     return journal
 
 
-def decode_rank(rank):
-    if rank is None:
-        return None
-    return int(rank)
-
-
-def get_global_rank(player, field):
-    redis = get_redis()
-    total = decode_rank(redis.hget(format_redis_key("rank", field), "total"))
-
-    if isinstance(player, str):
-        return decode_rank(redis.hget(format_redis_key("rank", field), player)), total
-
-    if len(player) > 0:
-        return {player: decode_rank(rank) for player, rank in zip(player, redis.hmget(format_redis_key("rank", field), player))}, total
-
-    return {}, total
-
-
 def get_ranked_players(field, count, preload=None):
     # Make sure we aren't doing a pointless request
     if count < 1:
-        raise ValueError("You must request at least one player")
-
-    if preload is None:
-        preload = []
+        return []
 
     # Get the target field
-    target = getattr(PlayerStats, field)
-
-    # Get the default value for the target attribute
-    if target.default is None:
-        default = target.default
-    else:
-        default = target.default.arg
+    target = getattr(PlayerRanking, field)
 
     # Build the query
-    query = Player.query.join(Player.stats).filter(target != default).filter(Player.blacklisted.is_(False))
+    query = Player.query.join(Player.stats).join(Player.rankings).filter(Player.blacklisted.is_(False)).filter(target.isnot(None))
     if preload:
         query = query.options(contains_eager(Player.stats))
+        query = query.options(contains_eager(Player.rankings))
     query = query.order_by(target.desc())
-    if target != PlayerStats.mmr:
-        # This is a secondary sort in case there is conflicts
-        query = query.order_by(PlayerStats.mmr.desc())
 
     # Get the top list of players
     return query[:count]
