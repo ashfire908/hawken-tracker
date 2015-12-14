@@ -307,10 +307,6 @@ def update_global_rankings(last, journal):
     i = journal.stage_start(len(ranking_fields))
     db.session.commit()
 
-    # Latest snapshot filter subquery
-    ps1 = db.aliased(PlayerStats)
-    latest_snapshot = db.session.query(db.func.max(ps1.snapshot_taken)).filter(ps1.player_id == PlayerStats.player_id).subquery()
-
     # Iterate over the rankings
     for field in ranking_fields[i:]:
         key = format_redis_key("rank", field)
@@ -328,7 +324,7 @@ def update_global_rankings(last, journal):
                            join(Player).\
                            filter(target.isnot(None)).\
                            filter(Player.blacklisted.is_(False)).\
-                           filter(PlayerStats.snapshot_taken == latest_snapshot).\
+                           filter(PlayerStats.snapshot_taken == Player.latest_snapshot).\
                            order_by(target.desc())
 
         # Setup for the loop
